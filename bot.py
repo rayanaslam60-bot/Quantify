@@ -22,7 +22,6 @@ from modules.signals  import get_signals_cached, compute_signals, train_model, m
 from modules.charts   import base_layout, main_chart, mini_chart, CFG, CFG0
 from modules.moneyman import call_mm, QUICK_ASKS
 from modules.backtest import (STRATEGY_CATEGORIES, STRATEGY_DESC, run_backtest)
-from modules.tradingview import tv_chart, tv_mini_chart, TV_INTERVALS, get_tv_symbol
 
 # ── Session state ─────────────────────────────────────────────────────────────
 for k,v in [('theme','dark'),('chart_type','Candlestick'),
