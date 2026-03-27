@@ -1,12 +1,9 @@
-# bot.py — Main entry point for Quantify
-# All logic lives in modules/ — this file just handles routing and UI
-
 import streamlit as st
+import streamlit.components.v1 as components
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
@@ -14,28 +11,25 @@ warnings.filterwarnings('ignore')
 st.set_page_config(page_title="Quantify", layout="wide",
                    initial_sidebar_state="expanded")
 
-# ── Imports from modules ──────────────────────────────────────────────────────
-from modules.styles   import get_colors, inject_css, lbl
-from modules.tickers  import TICKER_DB, TICKER_MAP, search_tickers
-from modules.data     import TIMEFRAMES, get_data, price_info, fetch_news, add_indicators
-from modules.signals  import get_signals_cached, compute_signals, train_model, ml_predict
-from modules.charts   import base_layout, main_chart, mini_chart, CFG, CFG0
-from modules.moneyman import call_mm, QUICK_ASKS
-from modules.backtest import (STRATEGY_CATEGORIES, STRATEGY_DESC, run_backtest)
+from modules.styles      import get_colors, inject_css, lbl
+from modules.tickers     import TICKER_DB, TICKER_MAP, search_tickers
+from modules.data        import TIMEFRAMES, get_data, price_info, fetch_news, add_indicators
+from modules.signals     import get_signals_cached, compute_signals, train_model, ml_predict
+from modules.charts      import base_layout, mini_chart, CFG, CFG0
+from modules.moneyman    import call_mm, QUICK_ASKS
+from modules.backtest    import STRATEGY_CATEGORIES, STRATEGY_DESC, run_backtest
+from modules.tradingview import get_tv_symbol, TV_INTERVALS
 
-# ── Session state ─────────────────────────────────────────────────────────────
 for k,v in [('theme','dark'),('chart_type','Candlestick'),
              ('watchlist',['SPY','AAPL','NVDA','BTC-USD','ETH-USD','GC=F']),
              ('portfolio',[]),('active_page','dashboard'),('active_symbol',None)]:
     if k not in st.session_state: st.session_state[k]=v
 
-# ── Theme & CSS ───────────────────────────────────────────────────────────────
 C = get_colors()
 inject_css(C)
 UP=C['UP']; DOWN=C['DOWN']; BLUE=C['BLUE']
 AMBER=C['AMBER']; PURP=C['PURP']; CYAN=C['CYAN']; ROSE=C['ROSE']
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 def sig_color(s): return UP if "BUY" in s else DOWN if "SELL" in s else C['TXT2']
 def sig_bg(s):    return 'rgba(0,230,118,0.06)' if "BUY" in s else 'rgba(255,61,87,0.06)' if "SELL" in s else C['BG2']
 def sig_border(s):return UP if "BUY" in s else DOWN if "SELL" in s else C['BOR']
@@ -54,10 +48,58 @@ def price_badge(ticker):
         </div>
     </div>"""
 
-# ── SIDEBAR ───────────────────────────────────────────────────────────────────
-PAGES = [("📊","Dashboard"),("📈","Equities"),("₿","Crypto"),
-         ("🛢","Commodities"),("📦","Futures"),("⚙","Options"),
-         ("📰","News"),("🔬","Backtest"),("💬","MoneyMan"),("💼","Portfolio")]
+def render_tv_chart(ticker, tf="1D", theme="dark"):
+    tv_sym = get_tv_symbol(ticker)
+    tv_int = TV_INTERVALS.get(tf, "1D")
+    bg = "#010408" if theme=="dark" else "#ffffff"
+    safe_id = ticker.replace("-","").replace("=","").replace("^","")
+    html = f"""<html><head>
+    <style>*{{margin:0;padding:0;box-sizing:border-box;}}body{{background:{bg};}}
+    #tvchart_{safe_id}{{height:680px;width:100%;}}</style></head><body>
+    <div id="tvchart_{safe_id}"></div>
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <script>
+    new TradingView.widget({{
+        autosize:true, symbol:"{tv_sym}", interval:"{tv_int}",
+        timezone:"Etc/UTC", theme:"{theme}", style:"1", locale:"en",
+        toolbar_bg:"{bg}", enable_publishing:false, allow_symbol_change:true,
+        hide_side_toolbar:false, withdateranges:true, save_image:true,
+        container_id:"tvchart_{safe_id}",
+        studies:["RSI@tv-basicstudies","MACD@tv-basicstudies","Volume@tv-basicstudies"],
+        overrides:{{
+            "paneProperties.background":"{bg}",
+            "paneProperties.backgroundType":"solid",
+            "scalesProperties.textColor":"#2a5070",
+            "paneProperties.vertGridProperties.color":"#071525",
+            "paneProperties.horzGridProperties.color":"#071525",
+        }},
+        studies_overrides:{{
+            "volume.volume.color.0":"#ff3d5766",
+            "volume.volume.color.1":"#00e67666",
+        }},
+    }});
+    </script></body></html>"""
+    components.html(html, height=700)
+
+def render_tv_mini(ticker, theme="dark"):
+    tv_sym = get_tv_symbol(ticker)
+    safe_id = ticker.replace("-","").replace("=","").replace("^","")
+    html = f"""<html><head><style>*{{margin:0;padding:0;}}body{{background:transparent;}}</style></head>
+    <body><div id="mini_{safe_id}"></div>
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <script>new TradingView.MiniWidget({{
+        symbol:"{tv_sym}",width:"100%",height:200,locale:"en",
+        dateRange:"1D",colorTheme:"{theme}",
+        trendLineColor:"rgba(41,121,255,1)",
+        underLineColor:"rgba(41,121,255,0.06)",
+        isTransparent:true,
+        container_id:"mini_{safe_id}"
+    }});</script></body></html>"""
+    components.html(html, height=210)
+
+PAGES=[("📊","Dashboard"),("📈","Equities"),("₿","Crypto"),
+       ("🛢","Commodities"),("📦","Futures"),("⚙","Options"),
+       ("📰","News"),("🔬","Backtest"),("💬","MoneyMan"),("💼","Portfolio")]
 
 with st.sidebar:
     st.markdown(f"""<div style="padding:20px 20px 16px;border-bottom:1px solid {C['BOR']};">
@@ -73,8 +115,6 @@ with st.sidebar:
             st.session_state.theme='dark'; st.rerun()
         elif t_choice=="Light" and st.session_state.theme!='light':
             st.session_state.theme='light'; st.rerun()
-        st.radio("Chart",["Candlestick","OHLC","Area","Line"],key="ct_radio")
-        st.session_state.chart_type = st.session_state.ct_radio
 
     st.markdown(f"<div style='margin-top:8px;'>"+lbl("Search",C=C)+"</div>", unsafe_allow_html=True)
     sq=st.text_input("","",placeholder="Symbol or company...",key="sb_srch",label_visibility="collapsed")
@@ -95,19 +135,21 @@ with st.sidebar:
 
     st.markdown(f"<div style='border-top:1px solid {C['BOR']};margin:12px 0;'></div>", unsafe_allow_html=True)
     st.markdown(lbl("Watchlist",C=C), unsafe_allow_html=True)
+    tv_theme_sb = "dark" if C['DARK'] else "light"
     for wt in st.session_state.watchlist:
         p2,chg2,pct2=price_info(wt)
         if p2:
             col2=UP if pct2>=0 else DOWN; sign2="+" if pct2>=0 else ""
-            df_mini=get_data(wt,"2d","30m")
-            f=mini_chart(df_mini,C,height=50)
             c1,c2=st.columns([1,1])
             with c1:
-                st.markdown(f"""<div><div style="font-family:'Space Mono';font-size:0.75rem;font-weight:700;color:{C['TXT1']};">{wt}</div>
+                st.markdown(f"""<div>
+                    <div style="font-family:'Space Mono';font-size:0.75rem;font-weight:700;color:{C['TXT1']};">{wt}</div>
                     <div style="font-family:'Space Mono';font-size:0.68rem;color:{C['TXT2']};">{p2:,.2f}</div>
                     <div style="font-family:'Space Mono';font-size:0.62rem;color:{col2};">{sign2}{pct2:.2f}%</div>
                 </div>""", unsafe_allow_html=True)
             with c2:
+                df_mini=get_data(wt,"2d","30m")
+                f=mini_chart(df_mini,C,height=50)
                 if f: st.plotly_chart(f,use_container_width=True,config=CFG0)
             st.markdown(f"<div style='border-bottom:1px solid {C['BOR']};margin:4px 0;'></div>", unsafe_allow_html=True)
 
@@ -122,8 +164,8 @@ with st.sidebar:
     </div>""", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ── SYMBOL PAGE ───────────────────────────────────────────────────────────────
 def render_symbol_page(ticker):
+    tv_theme = "dark" if C['DARK'] else "light"
     st.markdown(f"<div style='padding:0 1.5rem;'>", unsafe_allow_html=True)
     st.markdown(price_badge(ticker), unsafe_allow_html=True)
 
@@ -142,82 +184,63 @@ def render_symbol_page(ticker):
 
     st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
-    # Chart controls row
-    tv_theme = "dark" if C['DARK'] else "light"
-    ctrl_cols = st.columns([1,1,1,1,2,2])
-    tf = ctrl_cols[0].selectbox("TF", list(TV_INTERVALS.keys()), index=5,
-                                  key=f"tf_{ticker}", label_visibility="collapsed")
-    chart_style = ctrl_cols[1].selectbox("Style",
-                                          ["Candles","Bars","Line","Area","Heikin Ashi"],
-                                          key=f"cs_{ticker}", label_visibility="collapsed")
-    show_studies = ctrl_cols[2].checkbox("RSI", value=True, key=f"rsi_{ticker}")
-    show_macd    = ctrl_cols[3].checkbox("MACD", value=False, key=f"mac_{ticker}")
+    # Chart controls
+    ctrl=st.columns([1,1,1,1,4])
+    tf_sel=ctrl[0].selectbox("TF",list(TV_INTERVALS.keys()),index=5,
+                               key=f"tf_{ticker}",label_visibility="collapsed")
+    chart_style=ctrl[1].selectbox("Style",["Candles","Bars","Line","Area","Heikin Ashi"],
+                                   key=f"cs_{ticker}",label_visibility="collapsed")
+    show_rsi =ctrl[2].checkbox("RSI",value=True,key=f"rsi_{ticker}")
+    show_macd=ctrl[3].checkbox("MACD",value=True,key=f"mac_{ticker}")
 
-    STYLE_MAP = {"Candles":"1","Bars":"0","Line":"2","Area":"3","Heikin Ashi":"8"}
-    tv_style = STYLE_MAP.get(chart_style,"1")
+    STYLE_MAP={"Candles":"1","Bars":"0","Line":"2","Area":"3","Heikin Ashi":"8"}
+    tv_style=STYLE_MAP.get(chart_style,"1")
+    tv_int=TV_INTERVALS.get(tf_sel,"1D")
+    tv_sym=get_tv_symbol(ticker)
+    bg=C['BG0']
+    safe_id=ticker.replace("-","").replace("=","").replace("^","")
 
-    studies = []
-    if show_studies: studies.append("RSI@tv-basicstudies")
-    if show_macd:    studies.append("MACD@tv-basicstudies")
+    studies=["Volume@tv-basicstudies"]
+    if show_rsi:  studies.append("RSI@tv-basicstudies")
+    if show_macd: studies.append("MACD@tv-basicstudies")
+    studies_js=", ".join([f'"{s}"' for s in studies])
 
-    # TradingView chart
-    tv_sym = get_tv_symbol(ticker)
-    tv_int = TV_INTERVALS.get(tf, "1D")
-    bg = "#010408" if C['DARK'] else "#ffffff"
-
-    import streamlit.components.v1 as components
-    studies_js = ""
-    if studies:
-        studies_list = ", ".join([f'"{s}"' for s in studies])
-        studies_js = f"studies: [{studies_list}],"
-
-    chart_html = f"""
-    <html><head>
-    <style>* {{margin:0;padding:0;box-sizing:border-box;}} body {{background:{bg};}}
-    #tvchart_{ticker.replace('-','').replace('=','').replace('^','')} {{height:680px;width:100%;}}
-    </style></head><body>
-    <div id="tvchart_{ticker.replace('-','').replace('=','').replace('^','')}"></div>
+    chart_html=f"""<html><head>
+    <style>*{{margin:0;padding:0;box-sizing:border-box;}}body{{background:{bg};}}
+    #tvchart_{safe_id}{{height:680px;width:100%;}}</style></head><body>
+    <div id="tvchart_{safe_id}"></div>
     <script src="https://s3.tradingview.com/tv.js"></script>
     <script>
     new TradingView.widget({{
-        autosize: true,
-        symbol: "{tv_sym}",
-        interval: "{tv_int}",
-        timezone: "Etc/UTC",
-        theme: "{tv_theme}",
-        style: "{tv_style}",
-        locale: "en",
-        toolbar_bg: "{bg}",
-        enable_publishing: false,
-        allow_symbol_change: true,
-        hide_side_toolbar: false,
-        withdateranges: true,
-        save_image: true,
-        container_id: "tvchart_{ticker.replace('-','').replace('=','').replace('^','')}",
-        {studies_js}
-        overrides: {{
-            "paneProperties.background": "{bg}",
-            "paneProperties.backgroundType": "solid",
-            "scalesProperties.textColor": "#2a5070",
-            "paneProperties.vertGridProperties.color": "#071525",
-            "paneProperties.horzGridProperties.color": "#071525",
+        autosize:true, symbol:"{tv_sym}", interval:"{tv_int}",
+        timezone:"Etc/UTC", theme:"{tv_theme}", style:"{tv_style}", locale:"en",
+        toolbar_bg:"{bg}", enable_publishing:false, allow_symbol_change:true,
+        hide_side_toolbar:false, withdateranges:true, save_image:true,
+        container_id:"tvchart_{safe_id}",
+        studies:[{studies_js}],
+        overrides:{{
+            "paneProperties.background":"{bg}",
+            "paneProperties.backgroundType":"solid",
+            "scalesProperties.textColor":"#2a5070",
+            "paneProperties.vertGridProperties.color":"#071525",
+            "paneProperties.horzGridProperties.color":"#071525",
         }},
-        studies_overrides: {{
-            "volume.volume.color.0": "#ff3d5766",
-            "volume.volume.color.1": "#00e67666",
+        studies_overrides:{{
+            "volume.volume.color.0":"#ff3d5766",
+            "volume.volume.color.1":"#00e67666",
         }},
     }});
     </script></body></html>"""
-    components.html(chart_html, height=690)
+    components.html(chart_html, height=700)
 
-    # Also get data for signal analysis
-    per, inv = TIMEFRAMES.get(tf, ("2y","1d"))
+    # Signal analysis using data
+    per2,inv2=TIMEFRAMES.get(tf_sel,("2y","1d"))
     with st.spinner(""):
-        df = get_data(ticker, per, inv)
-    if df is None or len(df) < 20:
-        st.markdown("</div>", unsafe_allow_html=True)
-        return
-    df = add_indicators(df)
+        df=get_data(ticker,per2,inv2)
+    if df is None or len(df)<20:
+        st.markdown("</div>",unsafe_allow_html=True); return
+    df=add_indicators(df)
+
     st.markdown("<hr>", unsafe_allow_html=True)
     left,right=st.columns([3,2])
     with left:
@@ -226,7 +249,7 @@ def render_symbol_page(ticker):
         ml_sig,ml_conf=ml_predict(df,model,scaler,features)
         buys=sum(1 for _,s,_ in sigs if s=="BUY")
         sells=sum(1 for _,s,_ in sigs if s=="SELL")
-        c3=sig_color(ov); bg3=sig_bg(ov); bl3=sig_border(ov); ml_c=sig_color(ml_sig)
+        c3=sig_color(ov);bg3=sig_bg(ov);bl3=sig_border(ov);ml_c=sig_color(ml_sig)
         st.markdown(f"""<div style="background:{bg3};border:1px solid {bl3};border-radius:12px;padding:18px 20px;margin-bottom:12px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <div>
@@ -242,14 +265,15 @@ def render_symbol_page(ticker):
         </div>""", unsafe_allow_html=True)
         rows=""
         for name,sig,detail in sigs:
-            c4=sig_color(sig); bg4=sig_bg(sig); bl4=sig_border(sig)
+            c4=sig_color(sig);bg4=sig_bg(sig);bl4=sig_border(sig)
             rows+=f"""<div style="display:flex;justify-content:space-between;align-items:center;
                 background:{bg4};border-left:3px solid {bl4};padding:8px 14px;margin:2px 0;border-radius:0 8px 8px 0;">
                 <span style="font-family:'Space Mono';font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:{C['TXT2']};">{name}</span>
                 <span style="font-family:'Plus Jakarta Sans';font-size:0.75rem;color:{C['TXT3']};">{detail}</span>
-                <span style="font-family:'Outfit';font-size:0.85rem;font-weight:800;color:{c4};letter-spacing:0.06em;">{sig}</span>
+                <span style="font-family:'Outfit';font-size:0.85rem;font-weight:800;color:{c4};">{sig}</span>
             </div>"""
         st.markdown(rows, unsafe_allow_html=True)
+
     with right:
         r=df.iloc[-1]
         stats=[("OPEN",f"{float(r['Open']):.4f}"),
@@ -279,7 +303,7 @@ def render_symbol_page(ticker):
             if not np.isnan(float(val)):
                 mc2=UP if p2>float(val) else DOWN
                 ma_html+=f"""<div style="background:{C['BG0']};border:1px solid {C['BOR']};border-radius:8px;padding:10px 8px;flex:1;text-align:center;">
-                    <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;letter-spacing:0.1em;color:{C['TXT3']};margin-bottom:4px;">{lb2}</div>
+                    <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;color:{C['TXT3']};margin-bottom:4px;">{lb2}</div>
                     <div style="font-family:'Space Mono';font-size:0.8rem;font-weight:700;color:{mc2};">{float(val):.2f}</div>
                 </div>"""
         if ma_html:
@@ -294,9 +318,8 @@ def render_symbol_page(ticker):
             </div></a>""", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ── PAGE ROUTING ──────────────────────────────────────────────────────────────
-page = st.session_state.active_page
-now = datetime.now()
+page=st.session_state.active_page
+now=datetime.now()
 mkt_min=now.hour*60+now.minute; is_wd=now.weekday()<5
 if is_wd and 570<=mkt_min<960: ms2="MARKET OPEN"; msc2=UP
 elif is_wd and mkt_min<570: ms2="PRE-MARKET"; msc2=AMBER
@@ -316,12 +339,11 @@ st.markdown(f"""<div style="background:{C['BG1']};border-bottom:2px solid {C['BO
   </div>
 </div>""", unsafe_allow_html=True)
 
-# Symbol page (from search)
 if page=="symbol" and st.session_state.active_symbol:
     render_symbol_page(st.session_state.active_symbol)
 
-# ── DASHBOARD ─────────────────────────────────────────────────────────────────
 elif page=="dashboard":
+    tv_theme=("dark" if C['DARK'] else "light")
     st.markdown(f"<div style='padding:14px 1.5rem 0;'>", unsafe_allow_html=True)
     IDXS=[("S&P 500","SPY"),("NASDAQ","QQQ"),("DOW","DIA"),("RUSSELL","IWM"),
           ("VIX","^VIX"),("GOLD","GC=F"),("OIL","CL=F"),("BTC","BTC-USD"),("ETH","ETH-USD")]
@@ -337,10 +359,9 @@ elif page=="dashboard":
             </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-    wl_col1,wl_col2,wl_col3=st.columns([3,2,1])
-    with wl_col1:
-        st.markdown(lbl("My Watchlist",C=C), unsafe_allow_html=True)
-    with wl_col2:
+    wl_c1,wl_c2,wl_c3=st.columns([3,2,1])
+    with wl_c1: st.markdown(lbl("My Watchlist",C=C), unsafe_allow_html=True)
+    with wl_c2:
         wl_add=st.text_input("",placeholder="Add ticker...",key="wl_add",label_visibility="collapsed")
         if wl_add:
             wl_m=search_tickers(wl_add)
@@ -350,7 +371,7 @@ elif page=="dashboard":
                     nt=ws.split(" — ")[0]
                     if nt not in st.session_state.watchlist:
                         st.session_state.watchlist.append(nt); st.rerun()
-    with wl_col3:
+    with wl_c3:
         if st.button("Clear",key="clr_wl"): st.session_state.watchlist=[]; st.rerun()
 
     wl=st.session_state.watchlist
@@ -371,8 +392,8 @@ elif page=="dashboard":
             _,s5,_=get_signals_cached(tk,"7d","5m")
             _,s1d,_=get_signals_cached(tk,"2y","1d")
             def badge(s):
-                c2=sig_color(s); bg2=sig_bg(s); bl2=sig_border(s)
-                return f'<span style="background:{bg2};color:{c2};border:1px solid {bl2};font-family:Outfit;font-size:0.75rem;font-weight:800;padding:3px 10px;border-radius:6px;letter-spacing:0.04em;">{s}</span>'
+                c2=sig_color(s);bg2=sig_bg(s);bl2=sig_border(s)
+                return f'<span style="background:{bg2};color:{c2};border:1px solid {bl2};font-family:Outfit;font-size:0.75rem;font-weight:800;padding:3px 10px;border-radius:6px;">{s}</span>'
             name=TICKER_MAP.get(tk,tk)
             st.markdown(f"""<div style="display:grid;grid-template-columns:100px 1fr 110px 90px 120px 120px;
                 gap:4px;padding:9px 12px;border-bottom:1px solid {C['BOR']};align-items:center;">
@@ -390,8 +411,6 @@ elif page=="dashboard":
         st.markdown(lbl("Market Charts",C=C), unsafe_allow_html=True)
         CHARTS=[("SPY","S&P 500"),("QQQ","Nasdaq"),("BTC-USD","Bitcoin"),("GC=F","Gold")]
         ch_cols=st.columns(2)
-        tv_theme2 = "dark" if C['DARK'] else "light"
-        import streamlit.components.v1 as components
         for i,(ct2,cn) in enumerate(CHARTS):
             with ch_cols[i%2]:
                 p2,chg2,pct2=price_info(ct2)
@@ -400,20 +419,8 @@ elif page=="dashboard":
                     <span style="font-family:'Outfit';font-size:1rem;font-weight:800;color:{C['TXT1']};">{cn}</span>
                     <span style="font-family:'Space Mono';font-size:0.78rem;color:{col2};">{sign2}{(pct2 or 0):.2f}%</span>
                 </div>""", unsafe_allow_html=True)
-                tv_sym2 = get_tv_symbol(ct2)
-                safe_id = ct2.replace("-","").replace("=","").replace("^","")
-                mini_html = f"""<html><head><style>*{{margin:0;padding:0;}}body{{background:transparent;}}</style></head>
-                <body><div id="mini_{safe_id}"></div>
-                <script src="https://s3.tradingview.com/tv.js"></script>
-                <script>new TradingView.MiniWidget({{
-                    symbol:"{tv_sym2}",width:"100%",height:200,locale:"en",
-                    dateRange:"1D",colorTheme:"{tv_theme2}",
-                    trendLineColor:"rgba(41,121,255,1)",
-                    underLineColor:"rgba(41,121,255,0.06)",
-                    isTransparent:true,
-                    container_id:"mini_{safe_id}"
-                }});</script></body></html>"""
-                components.html(mini_html, height=210)
+                render_tv_mini(ct2, tv_theme)
+
     with right:
         st.markdown(lbl("Headlines",C=C), unsafe_allow_html=True)
         for n in fetch_news("SPY",10):
@@ -437,7 +444,6 @@ elif page=="dashboard":
             </div>""", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ── ASSET PAGES ───────────────────────────────────────────────────────────────
 elif page in ["equities","crypto","commodities","futures"]:
     LISTS={
         "equities": {"AAPL":"AAPL","NVDA":"NVDA","TSLA":"TSLA","MSFT":"MSFT","AMZN":"AMZN",
@@ -453,7 +459,6 @@ elif page in ["equities","crypto","commodities","futures"]:
     ch=st.selectbox("",list(lst.keys()),key=f"{page}_sel",label_visibility="collapsed")
     render_symbol_page(lst[ch])
 
-# ── OPTIONS ───────────────────────────────────────────────────────────────────
 elif page=="options":
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
     opt_t=st.selectbox("",["SPY","QQQ","AAPL","TSLA","NVDA","META","MSFT","AMZN","AMD"],
@@ -473,7 +478,7 @@ elif page=="options":
             m5.metric("PUT OI",f"{puts['openInterest'].sum():,.0f}")
             m6.metric("AVG IV",f"{calls['impliedVolatility'].mean()*100:.1f}%")
             s="BEARISH" if pcr>1.3 else "BULLISH" if pcr<0.7 else "NEUTRAL"
-            sc2=sig_color(s if s!="NEUTRAL" else "NEUTRAL")
+            sc2=sig_color(s)
             st.markdown(f"""<div style="background:{sig_bg(s)};border:1px solid {sig_border(s)};border-radius:12px;
                 padding:14px 20px;margin:14px 0;display:flex;align-items:center;gap:16px;">
                 <span style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};">Options Flow</span>
@@ -497,7 +502,6 @@ elif page=="options":
     except Exception as e: st.error(f"Options error: {e}")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ── NEWS ──────────────────────────────────────────────────────────────────────
 elif page=="news":
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"""<div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:4px;">News Feed</div>""", unsafe_allow_html=True)
@@ -520,18 +524,16 @@ elif page=="news":
                 <div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:12px;padding:16px;margin-bottom:10px;">
                     <div style="font-family:'Plus Jakarta Sans';font-size:0.9rem;font-weight:600;color:{C['TXT1']};line-height:1.45;margin-bottom:8px;">{n['title']}</div>
                     <div style="display:flex;justify-content:space-between;">
-                        <span style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;color:{BLUE};letter-spacing:0.06em;">{n['source'].upper()}</span>
+                        <span style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;color:{BLUE};">{n['source'].upper()}</span>
                         <span style="font-family:'Space Mono';font-size:0.6rem;color:{C['TXT3']};">{n['time']}</span>
                     </div>
                 </div></a>""", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ── BACKTEST ──────────────────────────────────────────────────────────────────
 elif page=="backtest":
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"""<div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:4px;">Backtest Terminal</div>
     <div style="font-family:'Space Mono';font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:16px;">No-Code Strategy Testing · Any Symbol · Any Timeframe</div>""", unsafe_allow_html=True)
-
     bc1,bc2,bc3,bc4=st.columns([2,1,1,1])
     with bc1:
         bt_q=st.text_input("Symbol","SPY",placeholder="Type symbol...",key="bt_q",label_visibility="collapsed")
@@ -544,7 +546,6 @@ elif page=="backtest":
     PERIODS={"1 Month":"1mo","3 Months":"3mo","6 Months":"6mo","1 Year":"1y","2 Years":"2y","5 Years":"5y"}
     bt_per=bc3.selectbox("Period",list(PERIODS.keys()),index=3,key="bt_per",label_visibility="collapsed")
     bt_cap=bc4.number_input("Capital",value=10000,min_value=100,step=1000,key="bt_cap",label_visibility="collapsed")
-
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     sc1,sc2=st.columns([2,3])
     with sc1:
@@ -555,7 +556,6 @@ elif page=="backtest":
             <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">Strategy</div>
             <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};line-height:1.5;">{STRATEGY_DESC.get(sel_strat,'')}</div>
         </div>""", unsafe_allow_html=True)
-
     if st.button("RUN BACKTEST",key="run_bt"):
         pc=PERIODS[bt_per]; tmap={"1D":"1d","1h":"1h","4h":"1h","1W":"1wk","15m":"15m"}
         inv=tmap[bt_tf]
@@ -580,7 +580,8 @@ elif page=="backtest":
                     <div style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};margin-top:4px;">
                         ${stats['initial']:,} → ${stats['final_equity']:,}</div>
                 </div>""", unsafe_allow_html=True)
-                si=[("WIN RATE",f"{stats['win_rate']}%",UP),("TRADES",str(stats['total_trades']),C['TXT1']),
+                si=[("WIN RATE",f"{stats['win_rate']}%",UP),
+                    ("TRADES",str(stats['total_trades']),C['TXT1']),
                     ("WINS",str(stats['winning']),UP),("LOSSES",str(stats['losing']),DOWN),
                     ("AVG WIN",f"+{stats['avg_win']}%",UP),("AVG LOSS",f"{stats['avg_loss']}%",DOWN),
                     ("PROFIT FACTOR",str(stats['profit_factor']),UP if stats['profit_factor']>=1 else DOWN),
@@ -613,7 +614,6 @@ elif page=="backtest":
                 st.dataframe(tdf,use_container_width=True,hide_index=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ── PORTFOLIO ─────────────────────────────────────────────────────────────────
 elif page=="portfolio":
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"""<div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:16px;">Portfolio</div>""", unsafe_allow_html=True)
@@ -630,19 +630,18 @@ elif page=="portfolio":
     if pc5.button("Add",key="port_add") and port_ticker and port_cost>0:
         st.session_state.portfolio.append({'ticker':port_ticker,'qty':port_qty,'cost':port_cost,'type':port_type})
         st.rerun()
-
     if not st.session_state.portfolio:
         st.markdown(f"""<div style="text-align:center;padding:40px;background:{C['BG2']};border:1px solid {C['BOR']};border-radius:12px;margin:16px 0;">
             <div style="font-family:'Plus Jakarta Sans';font-size:1rem;color:{C['TXT3']};">Add positions above to track your portfolio.</div>
         </div>""", unsafe_allow_html=True)
     else:
-        total_val=0; total_cost=0; positions=[]
+        total_val=0;total_cost=0;positions=[]
         for pos in st.session_state.portfolio:
             p,_,_=price_info(pos['ticker'])
             if p:
-                val=p*pos['qty']; cost=pos['cost']*pos['qty']
-                pnl=val-cost; pnl_pct=(pnl/cost)*100 if cost>0 else 0
-                total_val+=val; total_cost+=cost
+                val=p*pos['qty'];cost=pos['cost']*pos['qty'];pnl=val-cost
+                pnl_pct=(pnl/cost)*100 if cost>0 else 0
+                total_val+=val;total_cost+=cost
                 positions.append({**pos,'price':p,'value':val,'pnl':pnl,'pnl_pct':pnl_pct})
         total_pnl=total_val-total_cost
         total_pnl_pct=(total_pnl/total_cost)*100 if total_cost>0 else 0
@@ -652,20 +651,20 @@ elif page=="portfolio":
         pm3.metric("Total P&L",f"${total_pnl:+,.2f}",f"{total_pnl_pct:+.2f}%")
         pm4.metric("Positions",str(len(positions)))
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        hdr=f'<div style="display:grid;grid-template-columns:90px 80px 90px 100px 110px 110px 110px 80px;gap:4px;padding:8px 12px;border-bottom:2px solid {C["BOR"]};">'
-        for h2 in ["TICKER","TYPE","QTY","AVG COST","CUR PRICE","VALUE","P&L","REMOVE"]:
+        hdr=f'<div style="display:grid;grid-template-columns:90px 80px 90px 100px 110px 110px 130px 60px;gap:4px;padding:8px 12px;border-bottom:2px solid {C["BOR"]};">'
+        for h2 in ["TICKER","TYPE","QTY","AVG COST","CUR PRICE","VALUE","P&L","DEL"]:
             hdr+=f'<span style="font-family:Space Mono;font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};">{h2}</span>'
         hdr+="</div>"; st.markdown(hdr, unsafe_allow_html=True)
         for idx2,pos in enumerate(positions):
             pc2=UP if pos['pnl']>=0 else DOWN; sign2="+" if pos['pnl']>=0 else ""
-            st.markdown(f"""<div style="display:grid;grid-template-columns:90px 80px 90px 100px 110px 110px 110px 80px;
+            st.markdown(f"""<div style="display:grid;grid-template-columns:90px 80px 90px 100px 110px 110px 130px 60px;
                 gap:4px;padding:8px 12px;border-bottom:1px solid {C['BOR']};align-items:center;">
                 <span style="font-family:'Space Mono';font-size:0.8rem;font-weight:700;color:{C['TXT1']};">{pos['ticker']}</span>
                 <span style="font-family:'Space Mono';font-size:0.7rem;color:{C['TXT3']};">{pos['type']}</span>
                 <span style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};">{pos['qty']}</span>
                 <span style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};">${pos['cost']:.4f}</span>
                 <span style="font-family:'Space Mono';font-size:0.78rem;font-weight:600;color:{C['TXT1']};">${pos['price']:.4f}</span>
-                <span style="font-family:'Space Mono';font-size:0.78rem;font-weight:600;color:{C['TXT2']};">${pos['value']:,.2f}</span>
+                <span style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};">${pos['value']:,.2f}</span>
                 <span style="font-family:'Space Mono';font-size:0.78rem;font-weight:700;color:{pc2};">{sign2}${pos['pnl']:,.2f} ({sign2}{pos['pnl_pct']:.2f}%)</span>
             </div>""", unsafe_allow_html=True)
             if st.button("✕",key=f"rm_{idx2}"):
@@ -675,8 +674,7 @@ elif page=="portfolio":
             fig_pie=go.Figure(go.Pie(
                 labels=[p['ticker'] for p in positions],
                 values=[p['value'] for p in positions],
-                hole=0.55,
-                marker=dict(colors=COLORS[:len(positions)]),
+                hole=0.55,marker=dict(colors=COLORS[:len(positions)]),
                 textfont=dict(family='Space Mono',size=10)))
             fig_pie.update_layout(paper_bgcolor=C['BG0'],height=300,
                 font=dict(family='Space Mono',color=C['TXT2'],size=10),
@@ -685,7 +683,6 @@ elif page=="portfolio":
             st.plotly_chart(fig_pie,use_container_width=True,config=CFG0)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ── MONEYMAN ──────────────────────────────────────────────────────────────────
 elif page=="moneyman":
     if "mm_msgs" not in st.session_state: st.session_state.mm_msgs=[]
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
