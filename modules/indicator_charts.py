@@ -53,20 +53,35 @@ def make_indicator_chart(df, chart_name, C, height=280):
         fig.update_layout(
             paper_bgcolor=BG0, plot_bgcolor=BG1, height=height,
             font=dict(family='Space Mono', color=TXT3, size=9),
-            margin=dict(l=2, r=58, t=36, b=20),
+            margin=dict(l=2, r=58, t=32, b=16),
             legend=dict(bgcolor='rgba(0,0,0,0)', font=dict(size=8, color=TXT2),
                         orientation='h', y=1.08, x=0),
             hovermode='x unified',
             hoverlabel=dict(bgcolor=BG1, bordercolor=C['BOR'],
                             font=dict(family='Space Mono', size=9, color=C['TXT1'])),
-            xaxis=dict(showgrid=True, gridcolor=GRID, gridwidth=0.4,
-                       tickfont=dict(size=8, color=TXT3), zeroline=False,
-                       rangeslider=dict(visible=False)),
-            yaxis=dict(showgrid=True, gridcolor=GRID, gridwidth=0.4,
-                       tickfont=dict(size=8, color=TXT3), side='right', zeroline=False),
-            title=dict(text=f'<span style="font-family:Space Mono;font-size:10px;font-weight:700;color:{TXT3};letter-spacing:0.1em;">{title}</span>', x=0),
+            xaxis=dict(
+                showgrid=True, gridcolor=GRID, gridwidth=0.4,
+                tickfont=dict(size=8, color=TXT3), zeroline=False,
+                rangeslider=dict(visible=False),
+                showspikes=True, spikemode='across',
+                spikesnap='cursor', spikethickness=0.5,
+                spikecolor=TXT3, spikedash='dot',
+            ),
+            yaxis=dict(
+                showgrid=True, gridcolor=GRID, gridwidth=0.4,
+                tickfont=dict(size=8, color=TXT3), side='right', zeroline=False,
+                showspikes=True, spikemode='across',
+                spikethickness=0.5, spikecolor=TXT3, spikedash='dot',
+            ),
+            title=dict(
+                text=f'<span style="font-family:Space Mono;font-size:9px;font-weight:700;color:{TXT3};letter-spacing:0.1em;text-transform:uppercase;">{title}</span>',
+                x=0, y=0.98),
             dragmode='pan',
+            selectdirection='h',
+            modebar=dict(bgcolor='rgba(0,0,0,0)', color=TXT3),
         )
+        fig.update_xaxes(fixedrange=False)
+        fig.update_yaxes(fixedrange=False)
         return fig
 
     c = df['Close'].squeeze()

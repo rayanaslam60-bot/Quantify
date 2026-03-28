@@ -236,7 +236,13 @@ def render_symbol_page(ticker):
     components.html(chart_html, height=700)
 
     # Signal analysis using data
-    per2,inv2=TIMEFRAMES.get(tf_sel,("2y","1d"))
+    # Map TV timeframe to data fetch params
+    TF_DATA_MAP = {
+        "1m":("1d","1m"),"5m":("7d","5m"),"15m":("30d","15m"),"30m":("60d","30m"),
+        "1h":("60d","1h"),"2h":("120d","1h"),"4h":("180d","1h"),
+        "1D":("2y","1d"),"1W":("5y","1wk"),"1M":("10y","1mo"),
+    }
+    per2,inv2=TF_DATA_MAP.get(tf_sel,("2y","1d"))
     with st.spinner(""):
         df=get_data(ticker,per2,inv2)
     if df is None or len(df)<20:
@@ -362,8 +368,12 @@ def render_symbol_page(ticker):
         st.markdown(chip_html, unsafe_allow_html=True)
 
     # Render pinned charts
-    CFG_IND = {'displayModeBar': True, 'displaylogo': False, 'scrollZoom': True,
-                'modeBarButtonsToRemove': ['autoScale2d','lasso2d']}
+    CFG_IND = {
+        'displayModeBar': False,
+        'scrollZoom': True,
+        'displaylogo': False,
+        'doubleClick': 'reset',
+    }
 
     pinned = st.session_state[pin_key]
     if pinned:
