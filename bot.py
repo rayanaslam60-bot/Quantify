@@ -19,6 +19,8 @@ from modules.charts      import base_layout, mini_chart, CFG, CFG0
 from modules.moneyman    import call_mm, QUICK_ASKS
 from modules.backtest    import STRATEGY_CATEGORIES, STRATEGY_DESC, run_backtest
 from modules.tradingview import get_tv_symbol, TV_INTERVALS
+from modules.indicator_charts import make_indicator_chart, CHART_CATEGORIES, ALL_CHARTS, DEFAULT_CHARTS
+from modules.news import fetch_live_news, get_source_color, ny_time
 
 for k,v in [('theme','dark'),('chart_type','Candlestick'),
              ('watchlist',['SPY','AAPL','NVDA','BTC-USD','ETH-USD','GC=F']),
@@ -310,12 +312,97 @@ def render_symbol_page(ticker):
             st.markdown(f'<div style="display:flex;gap:6px;margin-top:8px;">{ma_html}</div>', unsafe_allow_html=True)
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         st.markdown(lbl(f"News — {ticker}",C=C), unsafe_allow_html=True)
-        for n in fetch_news(ticker,5):
+        for n in fetch_live_news(ticker,5):
             st.markdown(f"""<a href="{n['link']}" target="_blank" style="text-decoration:none;display:block;">
             <div style="border-bottom:1px solid {C['BOR']};padding:9px 0;">
                 <div style="font-family:'Plus Jakarta Sans';font-size:0.82rem;font-weight:500;color:{C['TXT2']};line-height:1.4;margin-bottom:4px;">{n['title']}</div>
                 <div style="font-family:'Space Mono';font-size:0.58rem;color:{C['TXT3']};">{n['source'].upper()} · {n['time']}</div>
             </div></a>""", unsafe_allow_html=True)
+
+    # ── INDICATOR CHARTS ──────────────────────────────────────────────────────
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown(lbl("Advanced Indicator Charts",C=C), unsafe_allow_html=True)
+    st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.62rem;color:{C['TXT3']};
+        padding:0 0 12px;">Professional indicators used by Wall Street, hedge funds and institutional traders.</div>""",
+        unsafe_allow_html=True)
+
+    # Default pinned charts
+    pin_key = f"pinned_{ticker}"
+    if pin_key not in st.session_state:
+        st.session_state[pin_key] = DEFAULT_CHARTS.copy()
+
+    # Add chart controls
+    ind_c1, ind_c2, ind_c3 = st.columns([3, 1, 1])
+    with ind_c1:
+        cat_sel = st.selectbox("Category",
+            ["— All Categories —"] + list(CHART_CATEGORIES.keys()),
+            key=f"ind_cat_{ticker}", label_visibility="collapsed")
+        if cat_sel == "— All Categories —":
+            chart_options = ALL_CHARTS
+        else:
+            chart_options = CHART_CATEGORIES[cat_sel]
+        chart_sel = st.selectbox("Add Chart", chart_options,
+            key=f"ind_sel_{ticker}", label_visibility="collapsed")
+    with ind_c2:
+        if st.button("＋ Add Chart", key=f"ind_add_{ticker}"):
+            if chart_sel not in st.session_state[pin_key]:
+                st.session_state[pin_key].append(chart_sel)
+                st.rerun()
+    with ind_c3:
+        if st.button("Reset Default", key=f"ind_rst_{ticker}"):
+            st.session_state[pin_key] = DEFAULT_CHARTS.copy()
+            st.rerun()
+
+    # Show active charts list with remove buttons
+    if st.session_state[pin_key]:
+        chip_html = '<div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 14px;">'
+        for ch_name in st.session_state[pin_key]:
+            chip_html += f'<span style="background:{C["BG2"]};border:1px solid {C["BOR2"]};border-radius:20px;padding:4px 12px;font-family:Space Mono;font-size:0.62rem;font-weight:700;color:{C["TXT2"]};letter-spacing:0.04em;">{ch_name}</span>'
+        chip_html += '</div>'
+        st.markdown(chip_html, unsafe_allow_html=True)
+
+    # Render pinned charts
+    CFG_IND = {'displayModeBar': True, 'displaylogo': False, 'scrollZoom': True,
+                'modeBarButtonsToRemove': ['autoScale2d','lasso2d']}
+
+    pinned = st.session_state[pin_key]
+    if pinned:
+        # First render default 3 in a row
+        default_3 = pinned[:3]
+        extra = pinned[3:]
+
+        if len(default_3) == 3:
+            col_a, col_b, col_c = st.columns(3)
+            cols3 = [col_a, col_b, col_c]
+        elif len(default_3) == 2:
+            col_a, col_b = st.columns(2)
+            cols3 = [col_a, col_b]
+        else:
+            cols3 = [st.columns(1)[0]]
+
+        for i, ch_name in enumerate(default_3):
+            with cols3[i]:
+                st.markdown(f"""<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <span style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;color:{C['TXT3']};letter-spacing:0.08em;text-transform:uppercase;">{ch_name}</span>
+                </div>""", unsafe_allow_html=True)
+                fig_ind = make_indicator_chart(df, ch_name, C, height=240)
+                if fig_ind:
+                    st.plotly_chart(fig_ind, use_container_width=True, config=CFG_IND)
+                if st.button("✕ Remove", key=f"rm_ind_{ticker}_{i}"):
+                    st.session_state[pin_key].remove(ch_name); st.rerun()
+
+        # Extra charts full width
+        for j, ch_name in enumerate(extra):
+            col_left, col_right = st.columns([5, 1])
+            with col_left:
+                fig_ind = make_indicator_chart(df, ch_name, C, height=260)
+                if fig_ind:
+                    st.plotly_chart(fig_ind, use_container_width=True, config=CFG_IND)
+            with col_right:
+                st.markdown("<div style='height:100px'></div>", unsafe_allow_html=True)
+                if st.button("✕ Remove", key=f"rm_ind_extra_{ticker}_{j}"):
+                    st.session_state[pin_key].remove(ch_name); st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 page=st.session_state.active_page
@@ -334,7 +421,7 @@ st.markdown(f"""<div style="background:{C['BG1']};border-bottom:2px solid {C['BO
     </div>
     <div style="display:flex;align-items:center;gap:20px;">
       <span style="font-family:'Space Mono';font-size:0.82rem;font-weight:700;color:{msc2};letter-spacing:0.08em;">{ms2}</span>
-      <span style="font-family:'Space Mono';font-size:0.68rem;color:{C['TXT3']};">{now.strftime('%a %b %d %Y · %H:%M')}</span>
+      <span style="font-family:'Space Mono';font-size:0.68rem;color:{C['TXT3']};">{now.strftime('%a %b %d %Y')} · {ny_time()}</span>
     </div>
   </div>
 </div>""", unsafe_allow_html=True)
@@ -423,7 +510,7 @@ elif page=="dashboard":
 
     with right:
         st.markdown(lbl("Headlines",C=C), unsafe_allow_html=True)
-        for n in fetch_news("SPY",10):
+        for n in fetch_live_news("SPY",10):
             st.markdown(f"""<a href="{n['link']}" target="_blank" style="text-decoration:none;display:block;">
             <div style="border-bottom:1px solid {C['BOR']};padding:9px 0;">
                 <div style="font-family:'Plus Jakarta Sans';font-size:0.82rem;font-weight:500;color:{C['TXT2']};line-height:1.4;margin-bottom:4px;">{n['title']}</div>
@@ -504,36 +591,101 @@ elif page=="options":
 
 elif page=="news":
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
-    st.markdown(f"""<div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:4px;">News Feed</div>""", unsafe_allow_html=True)
-    n_c1,n_c2=st.columns([2,4])
+
+    # Header with live NY clock
+    st.markdown(f"""<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;">
+        <div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};">Live News Feed</div>
+        <div style="font-family:'Space Mono';font-size:0.7rem;font-weight:700;color:{AMBER};">
+            🕐 {ny_time()} · Auto-refreshes every 60s
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+    n_c1, n_c2, n_c3 = st.columns([2,2,2])
     with n_c1:
-        nt=st.selectbox("",["SPY","AAPL","NVDA","TSLA","MSFT","META","BTC-USD","ETH-USD","GC=F","CL=F"],
-                         key="news_tkr",label_visibility="collapsed")
-        nl=st.selectbox("",["20 articles","40 articles","60 articles"],key="news_lim",label_visibility="collapsed")
-        lim2=int(nl.split()[0])
+        nt = st.selectbox("Asset",
+            ["SPY","QQQ","AAPL","NVDA","TSLA","MSFT","META","AMZN","GOOGL",
+             "BTC-USD","ETH-USD","SOL-USD","XRP-USD",
+             "GC=F","CL=F","SI=F","NG=F",
+             "ES=F","NQ=F","EURUSD=X","GBPUSD=X"],
+            key="news_tkr", label_visibility="collapsed")
     with n_c2:
-        st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.65rem;color:{C['TXT3']};padding:10px 0;">Yahoo Finance · Reuters · Bloomberg · CNBC · WSJ</div>""", unsafe_allow_html=True)
-    with st.spinner("Loading..."):
-        news_items=fetch_news(nt,lim2)
-    if not news_items: st.warning("No news found.")
+        nl = st.selectbox("Count",
+            ["20 articles","40 articles","60 articles"],
+            key="news_lim", label_visibility="collapsed")
+        lim2 = int(nl.split()[0])
+    with n_c3:
+        layout_mode = st.radio("Layout", ["Grid","List"], horizontal=True,
+                                key="news_layout", label_visibility="collapsed")
+
+    st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.58rem;color:{C['TXT3']};
+        padding:4px 0 12px;">
+        Sources: Reuters · CNBC · MarketWatch · Yahoo Finance · Google News · CoinDesk · Seeking Alpha · Barrons
+    </div>""", unsafe_allow_html=True)
+
+    with st.spinner("Loading live news..."):
+        news_items = fetch_live_news(nt, lim2)
+
+    if not news_items:
+        st.markdown(f"""<div style="text-align:center;padding:40px;background:{C['BG2']};
+            border:1px solid {C['BOR']};border-radius:12px;">
+            <div style="font-family:'Plus Jakarta Sans';font-size:0.95rem;color:{C['TXT3']};">
+                No news found. Markets may be closed or RSS feeds temporarily unavailable.
+            </div>
+        </div>""", unsafe_allow_html=True)
     else:
-        nc1,nc2=st.columns(2)
-        for i,n in enumerate(news_items):
-            with nc1 if i%2==0 else nc2:
+        st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.62rem;color:{C['TXT3']};
+            padding:4px 0 8px;">{len(news_items)} articles loaded</div>""",
+            unsafe_allow_html=True)
+
+        if layout_mode == "Grid":
+            nc1, nc2 = st.columns(2)
+            for i, n in enumerate(news_items):
+                src_color = get_source_color(n['source'])
+                with nc1 if i%2==0 else nc2:
+                    st.markdown(f"""<a href="{n['link']}" target="_blank" style="text-decoration:none;display:block;">
+                    <div style="background:{C['BG2']};border:1px solid {C['BOR']};border-top:2px solid {src_color};
+                        border-radius:12px;padding:16px;margin-bottom:10px;transition:all 0.15s;">
+                        <div style="font-family:'Plus Jakarta Sans';font-size:0.9rem;font-weight:600;
+                                     color:{C['TXT1']};line-height:1.45;margin-bottom:10px;">{n['title']}</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;
+                                          color:{src_color};letter-spacing:0.06em;">{n['source'].upper()}</span>
+                            <span style="font-family:'Space Mono';font-size:0.6rem;color:{C['TXT3']};">
+                                {n['time']}</span>
+                        </div>
+                    </div></a>""", unsafe_allow_html=True)
+        else:
+            for n in news_items:
+                src_color = get_source_color(n['source'])
                 st.markdown(f"""<a href="{n['link']}" target="_blank" style="text-decoration:none;display:block;">
-                <div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:12px;padding:16px;margin-bottom:10px;">
-                    <div style="font-family:'Plus Jakarta Sans';font-size:0.9rem;font-weight:600;color:{C['TXT1']};line-height:1.45;margin-bottom:8px;">{n['title']}</div>
-                    <div style="display:flex;justify-content:space-between;">
-                        <span style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;color:{BLUE};">{n['source'].upper()}</span>
-                        <span style="font-family:'Space Mono';font-size:0.6rem;color:{C['TXT3']};">{n['time']}</span>
+                <div style="background:{C['BG2']};border-bottom:1px solid {C['BOR']};
+                    border-left:3px solid {src_color};padding:12px 16px;margin-bottom:4px;">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
+                        <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;font-weight:500;
+                                     color:{C['TXT1']};line-height:1.4;flex:1;">{n['title']}</div>
+                        <div style="text-align:right;white-space:nowrap;">
+                            <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;
+                                         color:{src_color};">{n['source'].upper()}</div>
+                            <div style="font-family:'Space Mono';font-size:0.58rem;color:{C['TXT3']};">{n['time']}</div>
+                        </div>
                     </div>
                 </div></a>""", unsafe_allow_html=True)
+
+    if st.button("🔄 Refresh News", key="refresh_news"):
+        st.cache_data.clear()
+        st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 elif page=="backtest":
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
     st.markdown(f"""<div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:4px;">Backtest Terminal</div>
-    <div style="font-family:'Space Mono';font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:16px;">No-Code Strategy Testing · Any Symbol · Any Timeframe</div>""", unsafe_allow_html=True)
+    <div style="font-family:'Space Mono';font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:16px;">No-Code Strategy Testing · Any Symbol · Any Timeframe · AI Quant Analysis</div>""", unsafe_allow_html=True)
+
+    # Mode selector
+    bt_mode = st.radio("", ["Built-in Strategies", "AI Quant Backtester"],
+                        horizontal=True, key="bt_mode", label_visibility="collapsed")
+
     bc1,bc2,bc3,bc4=st.columns([2,1,1,1])
     with bc1:
         bt_q=st.text_input("Symbol","SPY",placeholder="Type symbol...",key="bt_q",label_visibility="collapsed")
@@ -542,76 +694,381 @@ elif page=="backtest":
             bt_s=st.selectbox("",["— select —"]+bt_m,key="bt_sel",label_visibility="collapsed")
             bt_ticker=bt_s.split(" — ")[0] if bt_s and bt_s!="— select —" else bt_q.strip().upper()
         else: bt_ticker=bt_q.strip().upper() if bt_q else "SPY"
-    bt_tf=bc2.selectbox("TF",["1D","1h","4h","1W","15m"],key="bt_tf",label_visibility="collapsed")
-    PERIODS={"1 Month":"1mo","3 Months":"3mo","6 Months":"6mo","1 Year":"1y","2 Years":"2y","5 Years":"5y"}
+    bt_tf=bc2.selectbox("TF",["1D","1h","4h","1W","15m","1m","5m"],key="bt_tf",label_visibility="collapsed")
+    PERIODS={"1 Month":"1mo","3 Months":"3mo","6 Months":"6mo",
+              "1 Year":"1y","2 Years":"2y","5 Years":"5y","Max":"max"}
     bt_per=bc3.selectbox("Period",list(PERIODS.keys()),index=3,key="bt_per",label_visibility="collapsed")
-    bt_cap=bc4.number_input("Capital",value=10000,min_value=100,step=1000,key="bt_cap",label_visibility="collapsed")
+    bt_cap=bc4.number_input("Capital ($)",value=10000,min_value=100,step=1000,key="bt_cap",label_visibility="collapsed")
+
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    sc1,sc2=st.columns([2,3])
-    with sc1:
-        cat=st.selectbox("Category",list(STRATEGY_CATEGORIES.keys()),key="bt_cat",label_visibility="collapsed")
-        sel_strat=st.selectbox("Strategy",STRATEGY_CATEGORIES[cat],key="bt_strat",label_visibility="collapsed")
-    with sc2:
-        st.markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:12px;padding:14px 16px;margin-top:4px;">
-            <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">Strategy</div>
-            <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};line-height:1.5;">{STRATEGY_DESC.get(sel_strat,'')}</div>
-        </div>""", unsafe_allow_html=True)
-    if st.button("RUN BACKTEST",key="run_bt"):
-        pc=PERIODS[bt_per]; tmap={"1D":"1d","1h":"1h","4h":"1h","1W":"1wk","15m":"15m"}
-        inv=tmap[bt_tf]
-        if inv=="15m" and pc in ["5y","2y","1y"]: pc="60d"
-        elif inv=="1h" and pc=="5y": pc="2y"
-        with st.spinner(f"Running {sel_strat} on {bt_ticker}..."):
-            df_bt=get_data(bt_ticker,pc,inv)
-        if df_bt is None or len(df_bt)<50:
-            st.error("Not enough data. Try longer period or 1D timeframe.")
-        else:
-            result,err=run_backtest(df_bt,sel_strat,bt_cap)
-            if result is None: st.error(err)
+
+    if bt_mode == "Built-in Strategies":
+        sc1,sc2=st.columns([2,3])
+        with sc1:
+            cat=st.selectbox("Category",list(STRATEGY_CATEGORIES.keys()),key="bt_cat",label_visibility="collapsed")
+            sel_strat=st.selectbox("Strategy",STRATEGY_CATEGORIES[cat],key="bt_strat",label_visibility="collapsed")
+        with sc2:
+            st.markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:12px;padding:14px 16px;margin-top:4px;">
+                <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">Strategy Description</div>
+                <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};line-height:1.5;">{STRATEGY_DESC.get(sel_strat,'')}</div>
+            </div>""", unsafe_allow_html=True)
+
+        if st.button("RUN BACKTEST", key="run_bt"):
+            pc=PERIODS[bt_per]; tmap={"1D":"1d","1h":"1h","4h":"1h","1W":"1wk","15m":"15m","1m":"1m","5m":"5m"}
+            inv=tmap[bt_tf]
+            if inv in ["1m","5m"] and pc in ["5y","2y","1y","6mo"]: pc="60d"
+            elif inv=="15m" and pc in ["5y","2y","1y"]: pc="60d"
+            elif inv=="1h" and pc=="5y": pc="2y"
+            with st.spinner(f"Running {sel_strat} on {bt_ticker}..."):
+                df_bt=get_data(bt_ticker,pc,inv)
+            if df_bt is None or len(df_bt)<50:
+                st.error(f"Not enough data for {bt_ticker} on {bt_tf} / {bt_per}. Try longer period or 1D timeframe.")
             else:
-                stats=result['stats']; trades=result['trades']; eq_df=result['equity']
-                rc=UP if stats['total_return']>=0 else DOWN
-                st.markdown(f"""<div style="background:{'rgba(0,230,118,0.06)' if stats['total_return']>=0 else 'rgba(255,61,87,0.06)'};
-                    border:1px solid {rc};border-radius:12px;padding:18px 20px;margin:16px 0;">
-                    <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">
-                        {bt_ticker} · {bt_tf} · {bt_per} · {sel_strat}</div>
-                    <div style="font-family:'Outfit';font-size:2.6rem;font-weight:900;color:{rc};line-height:1;">
-                        {'+' if stats['total_return']>=0 else ''}{stats['total_return']}%</div>
-                    <div style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};margin-top:4px;">
-                        ${stats['initial']:,} → ${stats['final_equity']:,}</div>
-                </div>""", unsafe_allow_html=True)
-                si=[("WIN RATE",f"{stats['win_rate']}%",UP),
-                    ("TRADES",str(stats['total_trades']),C['TXT1']),
-                    ("WINS",str(stats['winning']),UP),("LOSSES",str(stats['losing']),DOWN),
-                    ("AVG WIN",f"+{stats['avg_win']}%",UP),("AVG LOSS",f"{stats['avg_loss']}%",DOWN),
-                    ("PROFIT FACTOR",str(stats['profit_factor']),UP if stats['profit_factor']>=1 else DOWN),
-                    ("MAX DRAWDOWN",f"-{stats['max_drawdown']}%",DOWN)]
-                sc_cols=st.columns(8)
-                for i2,(lbl2,val,col2) in enumerate(si):
-                    sc_cols[i2].markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;padding:12px;text-align:center;">
-                        <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:4px;">{lbl2}</div>
-                        <div style="font-family:'Space Mono';font-size:0.95rem;font-weight:700;color:{col2};">{val}</div>
+                result,err=run_backtest(df_bt,sel_strat,bt_cap)
+                if result is None: st.error(err)
+                else:
+                    stats=result['stats']; trades=result['trades']; eq_df=result['equity']
+                    rc=UP if stats['total_return']>=0 else DOWN
+                    st.markdown(f"""<div style="background:{'rgba(0,230,118,0.06)' if stats['total_return']>=0 else 'rgba(255,61,87,0.06)'};
+                        border:1px solid {rc};border-radius:12px;padding:18px 20px;margin:16px 0;">
+                        <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">
+                            {bt_ticker} · {bt_tf} · {bt_per} · {sel_strat}</div>
+                        <div style="font-family:'Outfit';font-size:2.6rem;font-weight:900;color:{rc};line-height:1;">
+                            {'+' if stats['total_return']>=0 else ''}{stats['total_return']}%</div>
+                        <div style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};margin-top:4px;">
+                            ${stats['initial']:,} → ${stats['final_equity']:,} · {stats['total_trades']} trades</div>
                     </div>""", unsafe_allow_html=True)
-                fig_eq=go.Figure(go.Scatter(x=eq_df.index,y=eq_df['equity'],
-                    line=dict(color=rc,width=1.5),fill='tozeroy',
-                    fillcolor=f"rgba({'0,230,118' if stats['total_return']>=0 else '255,61,87'},0.05)"))
-                fig_eq.add_hline(y=stats['initial'],line=dict(color=C['TXT3'],width=0.7,dash='dot'))
-                fig_eq.update_layout(**base_layout(C,280,"Equity Curve"))
-                st.plotly_chart(fig_eq,use_container_width=True,config=CFG0)
-                buy_d=[t['entry_date'] for t in trades]; buy_p=[t['entry_price'] for t in trades]
-                sell_d=[t['exit_date'] for t in trades]; sell_p=[t['exit_price'] for t in trades]
-                fig_tr=go.Figure()
-                fig_tr.add_trace(go.Scatter(x=df_bt.index,y=df_bt['Close'].squeeze(),line=dict(color=BLUE,width=1.2),name='Price'))
-                fig_tr.add_trace(go.Scatter(x=buy_d,y=buy_p,mode='markers',name='BUY',marker=dict(color=UP,size=8,symbol='triangle-up')))
-                fig_tr.add_trace(go.Scatter(x=sell_d,y=sell_p,mode='markers',name='SELL',marker=dict(color=DOWN,size=8,symbol='triangle-down')))
-                fig_tr.update_layout(**base_layout(C,320,"Trade Entries & Exits"))
-                st.plotly_chart(fig_tr,use_container_width=True,config=CFG0)
-                st.markdown(lbl("Trade Log",C=C), unsafe_allow_html=True)
-                tdf=pd.DataFrame(trades)
-                tdf['entry_date']=pd.to_datetime(tdf['entry_date']).dt.strftime('%Y-%m-%d')
-                tdf['exit_date']=pd.to_datetime(tdf['exit_date']).dt.strftime('%Y-%m-%d')
-                tdf.columns=['Entry','Exit','Entry $','Exit $','Return %','P&L $']
-                st.dataframe(tdf,use_container_width=True,hide_index=True)
+                    si=[("WIN RATE",f"{stats['win_rate']}%",UP),
+                        ("TRADES",str(stats['total_trades']),C['TXT1']),
+                        ("WINS",str(stats['winning']),UP),
+                        ("LOSSES",str(stats['losing']),DOWN),
+                        ("AVG WIN",f"+{stats['avg_win']}%",UP),
+                        ("AVG LOSS",f"{stats['avg_loss']}%",DOWN),
+                        ("PROFIT FACTOR",str(stats['profit_factor']),UP if stats['profit_factor']>=1 else DOWN),
+                        ("MAX DRAWDOWN",f"-{stats['max_drawdown']}%",DOWN)]
+                    sc_cols=st.columns(8)
+                    for i2,(lbl2,val,col2) in enumerate(si):
+                        sc_cols[i2].markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;padding:12px;text-align:center;">
+                            <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:4px;">{lbl2}</div>
+                            <div style="font-family:'Space Mono';font-size:0.95rem;font-weight:700;color:{col2};">{val}</div>
+                        </div>""", unsafe_allow_html=True)
+                    fig_eq=go.Figure(go.Scatter(x=eq_df.index,y=eq_df['equity'],
+                        line=dict(color=rc,width=1.5),fill='tozeroy',
+                        fillcolor=f"rgba({'0,230,118' if stats['total_return']>=0 else '255,61,87'},0.05)"))
+                    fig_eq.add_hline(y=stats['initial'],line=dict(color=C['TXT3'],width=0.7,dash='dot'))
+                    fig_eq.update_layout(**base_layout(C,280,"Equity Curve"))
+                    st.plotly_chart(fig_eq,use_container_width=True,config=CFG0)
+                    buy_d=[t['entry_date'] for t in trades]; buy_p=[t['entry_price'] for t in trades]
+                    sell_d=[t['exit_date'] for t in trades]; sell_p=[t['exit_price'] for t in trades]
+                    fig_tr=go.Figure()
+                    fig_tr.add_trace(go.Scatter(x=df_bt.index,y=df_bt['Close'].squeeze(),line=dict(color=BLUE,width=1.2),name='Price'))
+                    fig_tr.add_trace(go.Scatter(x=buy_d,y=buy_p,mode='markers',name='BUY',marker=dict(color=UP,size=8,symbol='triangle-up')))
+                    fig_tr.add_trace(go.Scatter(x=sell_d,y=sell_p,mode='markers',name='SELL',marker=dict(color=DOWN,size=8,symbol='triangle-down')))
+                    fig_tr.update_layout(**base_layout(C,320,"Trade Entries & Exits"))
+                    st.plotly_chart(fig_tr,use_container_width=True,config=CFG0)
+                    st.markdown(lbl("Trade Log",C=C), unsafe_allow_html=True)
+                    tdf=pd.DataFrame(trades)
+                    tdf['entry_date']=pd.to_datetime(tdf['entry_date']).dt.strftime('%Y-%m-%d')
+                    tdf['exit_date']=pd.to_datetime(tdf['exit_date']).dt.strftime('%Y-%m-%d')
+                    tdf.columns=['Entry','Exit','Entry $','Exit $','Return %','P&L $']
+                    st.dataframe(tdf,use_container_width=True,hide_index=True)
+
+    else:
+        # ── AI QUANT BACKTESTER ────────────────────────────────────────────────
+        st.markdown(f"""
+        <div style="background:linear-gradient(135deg,rgba(41,121,255,0.08),rgba(0,230,118,0.04));
+            border:1px solid {BLUE}44;border-radius:12px;padding:16px 20px;margin-bottom:16px;">
+            <div style="font-family:'Outfit';font-size:1.2rem;font-weight:800;color:{C['TXT1']};margin-bottom:4px;">AI Quant Analyst</div>
+            <div style="font-family:'Plus Jakarta Sans';font-size:0.85rem;color:{C['TXT2']};line-height:1.5;">
+                Describe any trading strategy in plain English. The AI will analyse the market data,
+                evaluate your strategy's technical validity, generate signals, run the backtest,
+                and give you a full institutional-grade report — even on short timeframes.
+            </div>
+        </div>""", unsafe_allow_html=True)
+
+        ai_strat = st.text_area("",
+            placeholder="""Describe your strategy. Examples:
+• Buy when RSI drops below 35 and the price is above the 200 EMA. Exit when RSI goes above 65 or price drops 3% from entry.
+• ICT strategy: buy after a liquidity sweep below the previous day low when price is in a bullish order block. Sell at the next resistance.
+• Buy when the MACD histogram turns positive AND volume is 1.5x the 20-day average. Use a 2% stop loss and 4% target.
+• Wyckoff spring setup: flat accumulation + low volume + price dips below support and recovers quickly.""",
+            height=130, key="ai_strat_input", label_visibility="collapsed")
+
+        ai_col1, ai_col2 = st.columns([3,1])
+        with ai_col2:
+            include_backtest = st.checkbox("Run backtest on signals", value=True, key="ai_run_bt")
+            show_code = st.checkbox("Show generated code", value=False, key="ai_show_code")
+
+        if st.button("ANALYSE WITH AI QUANT", key="ai_bt_run"):
+            if not ai_strat or len(ai_strat.strip()) < 10:
+                st.warning("Please describe your strategy first.")
+            else:
+                secret_key = st.secrets.get("ANTHROPIC_API_KEY", "").strip()
+                if not secret_key:
+                    st.error("API key needed. Add ANTHROPIC_API_KEY to Streamlit secrets.")
+                    st.stop()
+
+                pc=PERIODS[bt_per]
+                tmap={"1D":"1d","1h":"1h","4h":"1h","1W":"1wk","15m":"15m","1m":"1m","5m":"5m"}
+                inv=tmap[bt_tf]
+                if inv in ["1m","5m"] and pc in ["5y","2y","1y","6mo"]: pc="60d"
+                elif inv=="15m" and pc in ["5y","2y"]: pc="60d"
+
+                with st.spinner(f"Downloading {bt_ticker} data..."):
+                    df_ai = get_data(bt_ticker, pc, inv)
+
+                if df_ai is None or len(df_ai) < 20:
+                    st.error(f"No data for {bt_ticker}. Try a different symbol or longer period.")
+                    st.stop()
+
+                df_ai = add_indicators(df_ai)
+                df_ai.dropna(inplace=True)
+
+                avail_cols = [col for col in df_ai.columns if col not in ['Open','High','Low','Close','Volume']]
+                latest = df_ai.iloc[-1]
+                price = float(latest['Close'])
+                rsi_val = float(latest.get('rsi', 0))
+                macd_val = float(latest.get('mc', 0))
+                adx_val = float(latest.get('adx', 0))
+                vol_ratio = float(df_ai['Volume'].squeeze().iloc[-1] / df_ai['Volume'].squeeze().rolling(20).mean().iloc[-1]) if 'Volume' in df_ai else 1.0
+
+                market_context = f"""
+Symbol: {bt_ticker}
+Timeframe: {bt_tf} | Period: {bt_per} | Data points: {len(df_ai)}
+Current Price: {price:.4f}
+RSI(14): {rsi_val:.1f}
+MACD: {macd_val:.4f}
+ADX: {adx_val:.1f}
+Volume vs 20MA: {vol_ratio:.2f}x
+Available indicators: {', '.join(avail_cols[:20])}
+"""
+                import json, urllib.request as ur
+
+                # Step 1: AI Analysis
+                analysis_prompt = f"""You are a senior quantitative analyst at a top hedge fund with 20 years experience.
+
+A trader wants to backtest this strategy:
+"{ai_strat}"
+
+Market data context:
+{market_context}
+
+Provide a COMPLETE institutional-grade analysis:
+
+1. STRATEGY INTERPRETATION
+   - What is this strategy actually doing (in precise technical terms)?
+   - What market conditions does it work best in?
+   - What indicators/signals are required?
+
+2. TECHNICAL VALIDITY SCORE (0-10)
+   - Rate the strategy's technical soundness
+   - Explain edge (why should this work?)
+   - Risk of overfitting?
+
+3. MARKET CONDITION ASSESSMENT
+   - Is current market favorable for this strategy?
+   - Current RSI={rsi_val:.1f}, ADX={adx_val:.1f} — what does this mean for the strategy?
+
+4. ENTRY/EXIT RULES (precise)
+   - Exact entry conditions
+   - Exact exit conditions (profit target + stop loss)
+   - Position sizing recommendation
+
+5. EXPECTED PERFORMANCE
+   - Realistic win rate range
+   - Expected profit factor
+   - Max drawdown expectation
+   - Best timeframes for this strategy
+
+6. RISKS & WEAKNESSES
+   - When does this strategy fail?
+   - What to watch out for?
+
+7. IMPROVEMENTS
+   - How would you enhance this strategy?
+   - What additional filters would you add?
+
+Be specific, quantitative, and blunt. No fluff."""
+
+                with st.spinner("AI Quant is analysing your strategy..."):
+                    try:
+                        payload = json.dumps({
+                            "model": "claude-haiku-4-5-20251001",
+                            "max_tokens": 2000,
+                            "messages": [{"role": "user", "content": analysis_prompt}]
+                        }).encode()
+                        req = ur.Request("https://api.anthropic.com/v1/messages", data=payload,
+                            headers={"Content-Type":"application/json","x-api-key":secret_key,
+                                     "anthropic-version":"2023-06-01"}, method="POST")
+                        with ur.urlopen(req, timeout=45) as resp:
+                            analysis = json.loads(resp.read())["content"][0]["text"]
+                    except Exception as e:
+                        st.error(f"AI error: {e}")
+                        st.stop()
+
+                # Display analysis
+                st.markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};
+                    border-radius:12px;padding:20px;margin:12px 0;">
+                    <div style="font-family:'Space Mono';font-size:0.62rem;font-weight:700;
+                                 letter-spacing:0.14em;text-transform:uppercase;color:{BLUE};margin-bottom:12px;">
+                        AI QUANT ANALYSIS — {bt_ticker} · {bt_tf}</div>
+                    <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};
+                                 line-height:1.7;white-space:pre-wrap;">{analysis}</div>
+                </div>""", unsafe_allow_html=True)
+
+                # Step 2: Generate and run backtest signals
+                if include_backtest:
+                    code_prompt = f"""Convert this trading strategy to Python signal generation code.
+
+Strategy: {ai_strat}
+
+DataFrame 'df' has these columns: Close, Open, High, Low, Volume, {', '.join(avail_cols[:15])}
+All columns accessed as: df['rsi'].squeeze(), df['Close'].squeeze() etc.
+
+Write ONLY this function, no imports, no markdown, no explanation:
+
+def generate_signals(df):
+    import pandas as pd
+    import numpy as np
+    signals = pd.Series(0, index=df.index)
+    c = df['Close'].squeeze()
+    # add your signal logic here
+    # signals = 1 for BUY, -1 for SELL, 0 for hold
+    return signals
+
+Rules:
+- Use .squeeze() on every column access
+- Return pd.Series with same index as df
+- Handle NaN values with .fillna(0)
+- Keep it simple and robust"""
+
+                    with st.spinner("AI generating backtest signals..."):
+                        try:
+                            payload2 = json.dumps({
+                                "model": "claude-haiku-4-5-20251001",
+                                "max_tokens": 800,
+                                "messages": [{"role": "user", "content": code_prompt}]
+                            }).encode()
+                            req2 = ur.Request("https://api.anthropic.com/v1/messages", data=payload2,
+                                headers={"Content-Type":"application/json","x-api-key":secret_key,
+                                         "anthropic-version":"2023-06-01"}, method="POST")
+                            with ur.urlopen(req2, timeout=30) as resp2:
+                                code = json.loads(resp2.read())["content"][0]["text"]
+                            code = code.replace("```python","").replace("```","").strip()
+
+                            if show_code:
+                                st.code(code, language='python')
+
+                            # Execute the generated signals
+                            ns = {'df': df_ai, 'pd': pd, 'np': np}
+                            exec(code, ns)
+                            raw_signals = ns['generate_signals'](df_ai)
+                            if not isinstance(raw_signals, pd.Series):
+                                raw_signals = pd.Series(raw_signals, index=df_ai.index)
+                            signals_clean = raw_signals.fillna(0).astype(int)
+
+                            # Run simulation
+                            c2 = df_ai['Close'].squeeze()
+                            pos=0; cash=bt_cap; shares=0; trades=[]; equity_curve=[]; ep=0; ed=None
+                            for i in range(len(df_ai)):
+                                price2=float(c2.iloc[i]); sig=int(signals_clean.iloc[i]); date=df_ai.index[i]
+                                if sig==1 and pos==0:
+                                    shares=cash/price2; ep=price2; ed=date; cash=0; pos=1
+                                elif sig==-1 and pos==1:
+                                    cash=shares*price2
+                                    trades.append({'entry_date':ed,'exit_date':date,
+                                        'entry_price':round(ep,4),'exit_price':round(price2,4),
+                                        'return':round((price2-ep)/ep*100,2),
+                                        'pnl':round(shares*(price2-ep),2)})
+                                    shares=0; pos=0
+                                equity_curve.append({'date':date,'equity':cash+shares*price2})
+
+                            if pos==1:
+                                p_f=float(c2.iloc[-1]); cash=shares*p_f
+                                trades.append({'entry_date':ed,'exit_date':df_ai.index[-1],
+                                    'entry_price':round(ep,4),'exit_price':round(p_f,4),
+                                    'return':round((p_f-ep)/ep*100,2),'pnl':round(shares*(p_f-ep),2)})
+
+                            sig_count = int((signals_clean!=0).sum())
+                            st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.65rem;color:{C['TXT3']};padding:6px 0;">
+                                {sig_count} signals generated on {len(df_ai)} candles</div>""",
+                                unsafe_allow_html=True)
+
+                            if not trades:
+                                st.warning(f"No complete trades from {sig_count} signals. The strategy may need more data or different parameters.")
+                            else:
+                                eq_df2 = pd.DataFrame(equity_curve).set_index('date')
+                                wins=[t for t in trades if t['pnl']>0]
+                                losses=[t for t in trades if t['pnl']<=0]
+                                fe=cash if pos==0 else shares*float(c2.iloc[-1])
+                                peak=bt_cap; mdd=0
+                                for eq in eq_df2['equity']:
+                                    if eq>peak: peak=eq
+                                    dd=(peak-eq)/peak*100
+                                    if dd>mdd: mdd=dd
+                                total_ret=(fe-bt_cap)/bt_cap*100
+                                wr=len(wins)/len(trades)*100 if trades else 0
+                                pf_num=sum(t['pnl'] for t in wins)
+                                pf_den=abs(sum(t['pnl'] for t in losses))
+                                pf=pf_num/pf_den if pf_den>0 else 99
+
+                                rc2=UP if total_ret>=0 else DOWN
+                                st.markdown(f"""<div style="background:{'rgba(0,230,118,0.06)' if total_ret>=0 else 'rgba(255,61,87,0.06)'};
+                                    border:1px solid {rc2};border-radius:12px;padding:18px 20px;margin:12px 0;">
+                                    <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">
+                                        AI STRATEGY BACKTEST — {bt_ticker} · {bt_tf} · {bt_per}</div>
+                                    <div style="font-family:'Outfit';font-size:2.4rem;font-weight:900;color:{rc2};line-height:1;">
+                                        {'+' if total_ret>=0 else ''}{total_ret:.2f}%</div>
+                                    <div style="font-family:'Space Mono';font-size:0.75rem;color:{C['TXT2']};margin-top:4px;">
+                                        ${bt_cap:,} → ${fe:,.2f} · {len(trades)} trades · Win Rate {wr:.1f}%</div>
+                                </div>""", unsafe_allow_html=True)
+
+                                si2=[("WIN RATE",f"{wr:.1f}%",UP),
+                                     ("TRADES",str(len(trades)),C['TXT1']),
+                                     ("WINS",str(len(wins)),UP),
+                                     ("LOSSES",str(len(losses)),DOWN),
+                                     ("PROFIT FACTOR",f"{pf:.2f}",UP if pf>=1 else DOWN),
+                                     ("MAX DD",f"-{mdd:.1f}%",DOWN),
+                                     ("FINAL EQ",f"${fe:,.0f}",rc2),
+                                     ("SIGNALS",str(sig_count),AMBER)]
+                                sc2_cols=st.columns(8)
+                                for i3,(lbl3,val3,col3) in enumerate(si2):
+                                    sc2_cols[i3].markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;padding:10px;text-align:center;">
+                                        <div style="font-family:'Space Mono';font-size:0.55rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:3px;">{lbl3}</div>
+                                        <div style="font-family:'Space Mono';font-size:0.9rem;font-weight:700;color:{col3};">{val3}</div>
+                                    </div>""", unsafe_allow_html=True)
+
+                                fig_eq2=go.Figure(go.Scatter(x=eq_df2.index,y=eq_df2['equity'],
+                                    line=dict(color=rc2,width=1.5),fill='tozeroy',
+                                    fillcolor=f"rgba({'0,230,118' if total_ret>=0 else '255,61,87'},0.05)"))
+                                fig_eq2.add_hline(y=bt_cap,line=dict(color=C['TXT3'],width=0.7,dash='dot'))
+                                fig_eq2.update_layout(**base_layout(C,280,"AI Strategy Equity Curve"))
+                                st.plotly_chart(fig_eq2,use_container_width=True,config=CFG0)
+
+                                buy_d2=[t['entry_date'] for t in trades]
+                                buy_p2=[t['entry_price'] for t in trades]
+                                sell_d2=[t['exit_date'] for t in trades]
+                                sell_p2=[t['exit_price'] for t in trades]
+                                fig_tr2=go.Figure()
+                                fig_tr2.add_trace(go.Scatter(x=df_ai.index,y=df_ai['Close'].squeeze(),
+                                    line=dict(color=BLUE,width=1.2),name='Price'))
+                                fig_tr2.add_trace(go.Scatter(x=buy_d2,y=buy_p2,mode='markers',
+                                    name='BUY',marker=dict(color=UP,size=8,symbol='triangle-up')))
+                                fig_tr2.add_trace(go.Scatter(x=sell_d2,y=sell_p2,mode='markers',
+                                    name='SELL',marker=dict(color=DOWN,size=8,symbol='triangle-down')))
+                                fig_tr2.update_layout(**base_layout(C,300,"AI Strategy — Trade Entries & Exits"))
+                                st.plotly_chart(fig_tr2,use_container_width=True,config=CFG0)
+
+                                st.markdown(lbl("Trade Log",C=C), unsafe_allow_html=True)
+                                tdf2=pd.DataFrame(trades)
+                                tdf2['entry_date']=pd.to_datetime(tdf2['entry_date']).dt.strftime('%Y-%m-%d %H:%M')
+                                tdf2['exit_date']=pd.to_datetime(tdf2['exit_date']).dt.strftime('%Y-%m-%d %H:%M')
+                                tdf2.columns=['Entry','Exit','Entry $','Exit $','Return %','P&L $']
+                                st.dataframe(tdf2,use_container_width=True,hide_index=True)
+
+                        except Exception as e:
+                            st.error(f"Backtest generation error: {str(e)}")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 elif page=="portfolio":
