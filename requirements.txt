@@ -1,7 +1,8 @@
-streamlit 
-yfinance 
-pandas 
-numpy 
-scikit-learn 
-ta 
-plotly 
+streamlit
+yfinance
+pandas
+numpy
+scikit-learn
+ta
+plotly
+pytz
