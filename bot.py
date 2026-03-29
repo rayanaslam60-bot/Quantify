@@ -792,10 +792,10 @@ elif page=="backtest":
                     tdf=pd.DataFrame(trades)
                     tdf['entry_date']=pd.to_datetime(tdf['entry_date']).dt.strftime('%Y-%m-%d')
                     tdf['exit_date']=pd.to_datetime(tdf['exit_date']).dt.strftime('%Y-%m-%d')
-                    # Drop exit_reason if present, then rename
-                    if 'exit_reason' in tdf.columns:
-                        tdf = tdf.drop(columns=['exit_reason'])
+                    exit_col = tdf.pop('exit_reason') if 'exit_reason' in tdf.columns else None
                     tdf.columns=['Entry','Exit','Entry $','Exit $','Return %','P&L $']
+                    if exit_col is not None:
+                        tdf['Exit Reason'] = exit_col.values
                     st.dataframe(tdf,use_container_width=True,hide_index=True)
 
     else:
