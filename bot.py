@@ -704,12 +704,17 @@ elif page=="backtest":
             bt_s=st.selectbox("",["— select —"]+bt_m,key="bt_sel",label_visibility="collapsed")
             bt_ticker=bt_s.split(" — ")[0] if bt_s and bt_s!="— select —" else bt_q.strip().upper()
         else: bt_ticker=bt_q.strip().upper() if bt_q else "SPY"
-    bt_tf=bc2.selectbox("TF",["1D","1h","4h","1W","15m","1m","5m"],key="bt_tf",label_visibility="collapsed")
-    PERIODS={"1 Month":"1mo","3 Months":"3mo","6 Months":"6mo",
-              "1 Year":"1y","2 Years":"2y","5 Years":"5y","Max":"max"}
-    bt_per=bc3.selectbox("Period",list(PERIODS.keys()),index=3,key="bt_per",label_visibility="collapsed")
+    ALL_TFS=["1m","5m","15m","30m","1h","4h","1D","1W","1M"]
+    bt_tf=bc2.selectbox("Timeframe",ALL_TFS,index=6,key="bt_tf",label_visibility="collapsed")
+    smart_opts=SMART_PERIODS.get(bt_tf,["1 Month","3 Months","1 Year","2 Years","5 Years"])
+    bt_per=bc3.selectbox("Period",smart_opts,index=min(2,len(smart_opts)-1),key="bt_per",label_visibility="collapsed")
     bt_cap=bc4.number_input("Capital ($)",value=10000,min_value=100,step=1000,key="bt_cap",label_visibility="collapsed")
-
+    rm1,rm2,rm3,rm4,rm5=st.columns([1,1,1,1,2])
+    use_sl=rm1.checkbox("Stop Loss %",value=False,key="bt_use_sl")
+    sl_pct=rm2.number_input("SL",value=2.0,min_value=0.1,max_value=50.0,step=0.5,key="bt_sl",label_visibility="collapsed") if use_sl else None
+    use_tp=rm3.checkbox("Take Profit %",value=False,key="bt_use_tp")
+    tp_pct=rm4.number_input("TP",value=4.0,min_value=0.1,max_value=200.0,step=0.5,key="bt_tp",label_visibility="collapsed") if use_tp else None
+    bt_comm=rm5.slider("Commission %",min_value=0.0,max_value=0.5,value=0.1,step=0.01,key="bt_comm")/100
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     if bt_mode == "Built-in Strategies":
@@ -723,18 +728,23 @@ elif page=="backtest":
                 <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};line-height:1.5;">{STRATEGY_DESC.get(sel_strat,'')}</div>
             </div>""", unsafe_allow_html=True)
 
-        if st.button("RUN BACKTEST", key="run_bt"):
-            pc=PERIODS[bt_per]; tmap={"1D":"1d","1h":"1h","4h":"1h","1W":"1wk","15m":"15m","1m":"1m","5m":"5m"}
-            inv=tmap[bt_tf]
-            if inv in ["1m","5m"] and pc in ["5y","2y","1y","6mo"]: pc="60d"
-            elif inv=="15m" and pc in ["5y","2y","1y"]: pc="60d"
-            elif inv=="1h" and pc=="5y": pc="2y"
-            with st.spinner(f"Running {sel_strat} on {bt_ticker}..."):
+        if st.button("▶  RUN BACKTEST", key="run_bt"):
+            pc = PERIOD_CODES.get(bt_per, '1y')
+            tf_inv_map = {"1m":"1m","3m":"5m","5m":"5m","15m":"15m","30m":"30m",
+                          "1h":"1h","2h":"2h","4h":"1h","1D":"1d","1W":"1wk","1M":"1mo"}
+            inv = tf_inv_map.get(bt_tf, "1d")
+            with st.spinner(f"Fetching {bt_ticker} {bt_tf} data..."):
                 df_bt=get_data(bt_ticker,pc,inv)
-            if df_bt is None or len(df_bt)<50:
-                st.error(f"Not enough data for {bt_ticker} on {bt_tf} / {bt_per}. Try longer period or 1D timeframe.")
+            if df_bt is None or len(df_bt)<10:
+                st.error(f"No data for {bt_ticker} on {bt_tf} / {bt_per}. Try a longer period.")
             else:
-                result,err=run_backtest(df_bt,sel_strat,bt_cap)
+                st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.62rem;color:{C['TXT3']};padding:4px 0;">
+                    {len(df_bt)} candles loaded · Running {sel_strat}...</div>""", unsafe_allow_html=True)
+                with st.spinner(f"Running {sel_strat}..."):
+                    result,err=run_backtest(df_bt,sel_strat,bt_cap,
+                                            commission=bt_comm if 'bt_comm' in dir() else 0.001,
+                                            stop_loss_pct=sl_pct,
+                                            take_profit_pct=tp_pct)
                 if result is None: st.error(err)
                 else:
                     stats=result['stats']; trades=result['trades']; eq_df=result['equity']
@@ -748,14 +758,16 @@ elif page=="backtest":
                         <div style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};margin-top:4px;">
                             ${stats['initial']:,} → ${stats['final_equity']:,} · {stats['total_trades']} trades</div>
                     </div>""", unsafe_allow_html=True)
-                    si=[("WIN RATE",f"{stats['win_rate']}%",UP),
+                    si=[
+                        ("TOTAL RETURN",f"{'+' if stats['total_return']>=0 else ''}{stats['total_return']}%",UP if stats['total_return']>=0 else DOWN),
+                        ("WIN RATE",f"{stats['win_rate']}%",UP if stats['win_rate']>=50 else DOWN),
                         ("TRADES",str(stats['total_trades']),C['TXT1']),
-                        ("WINS",str(stats['winning']),UP),
-                        ("LOSSES",str(stats['losing']),DOWN),
-                        ("AVG WIN",f"+{stats['avg_win']}%",UP),
-                        ("AVG LOSS",f"{stats['avg_loss']}%",DOWN),
                         ("PROFIT FACTOR",str(stats['profit_factor']),UP if stats['profit_factor']>=1 else DOWN),
-                        ("MAX DRAWDOWN",f"-{stats['max_drawdown']}%",DOWN)]
+                        ("MAX DRAWDOWN",f"-{stats['max_drawdown']}%",DOWN),
+                        ("EXPECTANCY",f"{stats.get('expectancy',0):+.2f}%",UP if stats.get('expectancy',0)>=0 else DOWN),
+                        ("AVG WIN",f"+{stats['avg_win']}%",UP),
+                        ("SIGNALS",str(stats.get('signals_found','—')),AMBER),
+                    ]
                     sc_cols=st.columns(8)
                     for i2,(lbl2,val,col2) in enumerate(si):
                         sc_cols[i2].markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;padding:12px;text-align:center;">
