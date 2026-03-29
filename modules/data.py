@@ -5,7 +5,12 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from ta.momentum import (RSIIndicator, StochasticOscillator, WilliamsRIndicator,
-                          ROCIndicator, StochasticRSIIndicator)
+                          ROCIndicator)
+try:
+    from ta.momentum import StochasticRSIIndicator
+    HAS_STOCHRSI = True
+except ImportError:
+    HAS_STOCHRSI = False
 from ta.trend import (MACD, EMAIndicator, SMAIndicator, ADXIndicator,
                        CCIIndicator, IchimokuIndicator, PSARIndicator)
 from ta.volatility import (BollingerBands, AverageTrueRange, KeltnerChannel,
@@ -251,10 +256,11 @@ def add_indicators(df):
     safe('rsi21',  lambda: RSIIndicator(c, window=min(21,n-1)).rsi())
 
     try:
-        stoch_rsi = StochasticRSIIndicator(c, window=min(14,n-1),
-                                            smooth1=3, smooth2=3)
-        df['srsi_k'] = stoch_rsi.stochrsi_k()
-        df['srsi_d'] = stoch_rsi.stochrsi_d()
+        if HAS_STOCHRSI:
+            stoch_rsi = StochasticRSIIndicator(c, window=min(14,n-1),
+                                                smooth1=3, smooth2=3)
+            df['srsi_k'] = stoch_rsi.stochrsi_k()
+            df['srsi_d'] = stoch_rsi.stochrsi_d()
     except: pass
 
     try:
