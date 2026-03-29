@@ -792,6 +792,9 @@ elif page=="backtest":
                     tdf=pd.DataFrame(trades)
                     tdf['entry_date']=pd.to_datetime(tdf['entry_date']).dt.strftime('%Y-%m-%d')
                     tdf['exit_date']=pd.to_datetime(tdf['exit_date']).dt.strftime('%Y-%m-%d')
+                    # Drop exit_reason if present, then rename
+                    if 'exit_reason' in tdf.columns:
+                        tdf = tdf.drop(columns=['exit_reason'])
                     tdf.columns=['Entry','Exit','Entry $','Exit $','Return %','P&L $']
                     st.dataframe(tdf,use_container_width=True,hide_index=True)
 
@@ -830,7 +833,7 @@ elif page=="backtest":
                     st.error("API key needed. Add ANTHROPIC_API_KEY to Streamlit secrets.")
                     st.stop()
 
-                pc=PERIODS[bt_per]
+                pc=PERIOD_CODES.get(bt_per,"1y")
                 tmap={"1D":"1d","1h":"1h","4h":"1h","1W":"1wk","15m":"15m","1m":"1m","5m":"5m"}
                 inv=tmap[bt_tf]
                 if inv in ["1m","5m"] and pc in ["5y","2y","1y","6mo"]: pc="60d"
@@ -1085,6 +1088,8 @@ Rules:
                                 tdf2=pd.DataFrame(trades)
                                 tdf2['entry_date']=pd.to_datetime(tdf2['entry_date']).dt.strftime('%Y-%m-%d %H:%M')
                                 tdf2['exit_date']=pd.to_datetime(tdf2['exit_date']).dt.strftime('%Y-%m-%d %H:%M')
+                                if 'exit_reason' in tdf2.columns:
+                                    tdf2 = tdf2.drop(columns=['exit_reason'])
                                 tdf2.columns=['Entry','Exit','Entry $','Exit $','Return %','P&L $']
                                 st.dataframe(tdf2,use_container_width=True,hide_index=True)
 
