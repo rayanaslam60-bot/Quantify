@@ -13,7 +13,7 @@ st.set_page_config(page_title="Quantify", layout="wide",
 
 from modules.styles      import get_colors, inject_css, lbl
 from modules.tickers     import TICKER_DB, TICKER_MAP, search_tickers
-from modules.data        import TIMEFRAMES, get_data, price_info, fetch_news, add_indicators
+from modules.data        import TIMEFRAMES, SMART_PERIODS, PERIOD_CODES, get_data, price_info, fetch_news, add_indicators
 from modules.signals     import get_signals_cached, compute_signals, train_model, ml_predict
 from modules.charts      import base_layout, mini_chart, CFG, CFG0
 from modules.moneyman    import call_mm, QUICK_ASKS
