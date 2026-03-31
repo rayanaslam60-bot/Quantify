@@ -44,41 +44,63 @@ DEFAULT_CHARTS = ["RSI (14)", "MACD", "Volume + MA"]
 
 def make_indicator_chart(df, chart_name, C, height=280):
     """Build any indicator chart from dataframe"""
-    UP=C['UP']; DOWN=C['DOWN']; BLUE=C['BLUE']
-    AMBER=C['AMBER']; PURP=C['PURP']; CYAN=C['CYAN']
+    UP=C['UP']; DOWN=C['DOWN']
+    BLUE='#60a5fa'      # softer blue
+    AMBER='#fbbf24'     # warm amber
+    PURP='#a78bfa'      # soft purple
+    CYAN='#22d3ee'      # cyan
+    TEAL=C.get('TEAL','#14b8a6')
     BG0=C['BG0']; BG1=C['BG1']; GRID=C['GRID']
     TXT3=C['TXT3']; TXT2=C['TXT2']
 
     def base(fig, title=""):
         fig.update_layout(
             paper_bgcolor=BG0, plot_bgcolor=BG1, height=height,
-            font=dict(family='Space Mono', color=TXT3, size=9),
-            margin=dict(l=2, r=58, t=32, b=16),
-            legend=dict(bgcolor='rgba(0,0,0,0)', font=dict(size=8, color=TXT2),
-                        orientation='h', y=1.08, x=0),
+            font=dict(family='IBM Plex Mono', color=TXT3, size=9),
+            margin=dict(l=2, r=58, t=30, b=16),
+            legend=dict(
+                bgcolor='rgba(0,0,0,0)',
+                font=dict(size=8, color=TXT2, family='IBM Plex Mono'),
+                orientation='h', y=1.06, x=0,
+                borderwidth=0,
+            ),
             hovermode='x unified',
-            hoverlabel=dict(bgcolor=BG1, bordercolor=C['BOR'],
-                            font=dict(family='Space Mono', size=9, color=C['TXT1'])),
+            hoverlabel=dict(
+                bgcolor=BG1,
+                bordercolor=C['BOR2'],
+                font=dict(family='IBM Plex Mono', size=9, color=C['TXT1']),
+                namelength=-1,
+            ),
             xaxis=dict(
-                showgrid=True, gridcolor=GRID, gridwidth=0.4,
-                tickfont=dict(size=8, color=TXT3), zeroline=False,
+                showgrid=True, gridcolor=GRID, gridwidth=0.3,
+                tickfont=dict(size=8, color=TXT3, family='IBM Plex Mono'),
+                zeroline=False,
                 rangeslider=dict(visible=False),
                 showspikes=True, spikemode='across',
-                spikesnap='cursor', spikethickness=0.5,
-                spikecolor=TXT3, spikedash='dot',
+                spikesnap='cursor', spikethickness=0.6,
+                spikecolor=C['BOR2'], spikedash='solid',
+                # Remove blue selection highlight
+                rangeselector=dict(visible=False),
             ),
             yaxis=dict(
-                showgrid=True, gridcolor=GRID, gridwidth=0.4,
-                tickfont=dict(size=8, color=TXT3), side='right', zeroline=False,
+                showgrid=True, gridcolor=GRID, gridwidth=0.3,
+                tickfont=dict(size=8, color=TXT3, family='IBM Plex Mono'),
+                side='right', zeroline=False,
                 showspikes=True, spikemode='across',
-                spikethickness=0.5, spikecolor=TXT3, spikedash='dot',
+                spikethickness=0.6, spikecolor=C['BOR2'], spikedash='solid',
             ),
             title=dict(
-                text=f'<span style="font-family:Space Mono;font-size:9px;font-weight:700;color:{TXT3};letter-spacing:0.1em;text-transform:uppercase;">{title}</span>',
-                x=0, y=0.98),
+                text=f'<span style="font-family:IBM Plex Mono;font-size:9px;font-weight:600;color:{TXT3};letter-spacing:0.08em;text-transform:uppercase;">{title}</span>',
+                x=0, y=0.99, xanchor='left'),
             dragmode='pan',
+            modebar=dict(
+                bgcolor='rgba(0,0,0,0)',
+                color='rgba(0,0,0,0)',
+                activecolor='rgba(0,0,0,0)',
+            ),
+            newshape=dict(line=dict(color=C['TXT2'])),
+            activeselection=dict(fillcolor='rgba(0,0,0,0)'),
             selectdirection='h',
-            modebar=dict(bgcolor='rgba(0,0,0,0)', color=TXT3),
         )
         fig.update_xaxes(fixedrange=False)
         fig.update_yaxes(fixedrange=False)

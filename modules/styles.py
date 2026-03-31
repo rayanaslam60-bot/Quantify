@@ -235,6 +235,15 @@ hr{{border:none;border-top:1px solid {C['BOR']};margin:16px 0;}}
 /* Spinner */
 .stSpinner>div{{border-color:{C['BLUE']} transparent transparent transparent;}}
 
+/* Plotly chart drag cursor */
+.js-plotly-plot .plotly .drag{{cursor:grab!important;}}
+.js-plotly-plot .plotly .drag:active{{cursor:grabbing!important;}}
+.js-plotly-plot .plotly {{user-select:none;}}
+
+/* Remove Plotly mode bar completely */
+.modebar{{display:none!important;}}
+.modebar-container{{display:none!important;}}
+
 /* Alerts */
 .stAlert{{border-radius:6px;font-family:'Inter',sans-serif;font-size:0.82rem;}}
 
@@ -287,6 +296,17 @@ hr{{border:none;border-top:1px solid {C['BOR']};margin:16px 0;}}
     color:{C['TXT1']};
     border-left-color:{C['BLUE']};
 }}
+
+/* Plotly — remove blue selection highlight */
+.zoomlayer .select-outline {{fill:rgba(0,0,0,0)!important;stroke:{C['BOR2']}!important;stroke-dasharray:2px!important;}}
+.js-plotly-plot .plotly .select-outline {{stroke:{C['BOR2']}!important;fill:rgba(0,0,0,0)!important;}}
+/* Plotly hover box styling */
+.js-plotly-plot .plotly .hovertext rect {{fill:{C['BG1']}!important;stroke:{C['BOR2']}!important;opacity:0.96!important;}}
+.js-plotly-plot .plotly .hovertext text {{fill:{C['TXT2']}!important;}}
+/* Range slider handle colour */
+.rangeslider-grabber-min path, .rangeslider-grabber-max path {{fill:{C['TXT3']}!important;stroke:{C['BOR']}!important;}}
+.rangeslider-mask-min, .rangeslider-mask-max {{fill:{C['BG0']}!important;opacity:0.75;}}
+.rangeslider-slidebox {{fill:{C['BG2']}!important;stroke:{C['BOR']}!important;}}
 </style>
 """, unsafe_allow_html=True)
 

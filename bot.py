@@ -385,7 +385,7 @@ def render_symbol_page(ticker):
                 chips+='</div>'
                 st.markdown(chips, unsafe_allow_html=True)
             pinned=st.session_state[pin_key]
-            CFG_IND={'displayModeBar':False,'scrollZoom':True,'displaylogo':False}
+            CFG_IND={'displayModeBar':False,'scrollZoom':True,'displaylogo':False,'doubleClick':'reset'}
             if pinned:
                 first3=pinned[:3]; extra=pinned[3:]
                 if len(first3)==3: ind_cols=st.columns(3)
@@ -1317,49 +1317,102 @@ elif page=="portfolio":
 elif page=="moneyman":
     if "mm_msgs" not in st.session_state: st.session_state.mm_msgs=[]
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
-    left2,right2=st.columns([3,1])
-    with right2:
-        st.markdown(lbl("API Key",C=C), unsafe_allow_html=True)
-        api_key=st.text_input("","",placeholder="sk-ant-...",key="mm_key",type="password",label_visibility="collapsed")
-        st.markdown(f"""<div style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C['TXT3']};line-height:1.8;padding:6px 0 14px;">
-            console.anthropic.com<br>Session only. Never saved.</div>""", unsafe_allow_html=True)
-        st.markdown(lbl("Quick Prompts",C=C), unsafe_allow_html=True)
-        for qp in QUICK_ASKS:
-            if st.button(qp,key=f"qp_{hash(qp)}"):
-                st.session_state.mm_msgs.append({"role":"user","content":qp})
-                with st.spinner(""):
-                    reply=call_mm(st.session_state.mm_msgs,api_key)
-                st.session_state.mm_msgs.append({"role":"assistant","content":reply})
-                st.rerun()
-        if st.button("CLEAR",key="mm_clr"): st.session_state.mm_msgs=[]; st.rerun()
-    with left2:
-        st.markdown(f"""<div style="padding:0 0 14px;border-bottom:1px solid {C['BOR']};margin-bottom:14px;">
-            <div style="font-family:DM Sans,sans-serif;font-size:2rem;font-weight:900;color:{C['TXT1']};letter-spacing:-0.02em;">MoneyMan</div>
-            <div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-top:3px;">
-                30-Year Veteran · Goldman Sachs · Macro & Equities</div>
-        </div>""", unsafe_allow_html=True)
-        chat_html=f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:12px;padding:16px;height:520px;overflow-y:auto;margin-bottom:12px;">'
+
+    # Header
+    st.markdown(
+        f'<div style="padding:0 0 14px;border-bottom:1px solid {C["BOR"]};margin-bottom:16px;display:flex;align-items:baseline;justify-content:space-between;">'
+        f'<div>'
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.4rem;font-weight:700;color:{C["TXT1"]};">MoneyMan</div>'
+        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};margin-top:3px;">AI Hedge Fund Manager · Macro · Equities · Options</div>'
+        f'</div>'
+        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;color:{C["TXT3"]};">Powered by Claude · API key from Streamlit secrets</div>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
+    mm_left, mm_right = st.columns([3, 1])
+
+    with mm_left:
+        # Chat history container
+        chat_html = (
+            f'<div id="mm-chat" style="background:{C["BG2"]};border:1px solid {C["BOR"]};'
+            f'border-radius:6px;padding:16px;height:480px;overflow-y:auto;margin-bottom:10px;">'
+        )
         if not st.session_state.mm_msgs:
-            chat_html+=f"""<div style="padding:50px 0;text-align:center;">
-                <div style="font-family:Inter,sans-serif;font-size:1rem;font-weight:500;color:{C['TXT3']};line-height:2.4;">
-                    MoneyMan is online.<br>Ask about any market, trade, or strategy.</div></div>"""
+            chat_html += (
+                f'<div style="display:flex;align-items:center;justify-content:center;height:100%;">'
+                f'<div style="text-align:center;">'
+                f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.65rem;font-weight:600;'
+                f'letter-spacing:0.12em;text-transform:uppercase;color:{C["TXT3"]};margin-bottom:8px;">MONEYMAN ONLINE</div>'
+                f'<div style="font-family:Inter,sans-serif;font-size:0.85rem;color:{C["TXT3"]};line-height:1.8;">'
+                f'Ask about any market, strategy, trade idea, or analysis.</div>'
+                f'</div></div>'
+            )
         for msg in st.session_state.mm_msgs:
-            if msg['role']=='user':
-                chat_html+=f"""<div style="background:{C['BG1']};border-left:3px solid {BLUE};padding:12px 16px;margin:8px 0;border-radius:0 12px 12px 0;">
-                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{BLUE};margin-bottom:6px;">YOU</div>
-                    <div style="font-family:Inter,sans-serif;font-size:0.88rem;color:{C['TXT2']};line-height:1.55;">{msg['content']}</div>
-                </div>"""
+            if msg["role"] == "user":
+                chat_html += (
+                    f'<div style="background:{C["BG3"]};border-left:2px solid {BLUE};'
+                    f'padding:10px 14px;margin:6px 0;border-radius:0 4px 4px 0;">'
+                    f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;'
+                    f'letter-spacing:0.1em;text-transform:uppercase;color:{BLUE};margin-bottom:5px;">YOU</div>'
+                    f'<div style="font-family:Inter,sans-serif;font-size:0.85rem;color:{C["TXT2"]};line-height:1.55;">'
+                    f'{msg["content"]}</div></div>'
+                )
             else:
-                chat_html+=f"""<div style="background:{C['BG1']};border-left:3px solid {UP};padding:12px 16px;margin:8px 0;border-radius:0 12px 12px 0;">
-                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{UP};margin-bottom:6px;">MONEYMAN</div>
-                    <div style="font-family:Inter,sans-serif;font-size:0.88rem;color:{C['TXT2']};line-height:1.6;">{msg['content'].replace(chr(10),'<br>')}</div>
-                </div>"""
-        chat_html+='</div>'; st.markdown(chat_html, unsafe_allow_html=True)
-        user_in=st.chat_input("Ask MoneyMan...")
-        if user_in:
-            st.session_state.mm_msgs.append({"role":"user","content":user_in})
+                chat_html += (
+                    f'<div style="background:{C["BG1"]};border-left:2px solid {C["UP"]};'
+                    f'padding:10px 14px;margin:6px 0;border-radius:0 4px 4px 0;">'
+                    f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;'
+                    f'letter-spacing:0.1em;text-transform:uppercase;color:{C["UP"]};margin-bottom:5px;">MONEYMAN</div>'
+                    f'<div style="font-family:Inter,sans-serif;font-size:0.85rem;color:{C["TXT2"]};line-height:1.6;white-space:pre-wrap;">'
+                    f'{msg["content"]}</div></div>'
+                )
+        chat_html += (
+            '</div>'
+            '<script>var c=document.getElementById("mm-chat");if(c)c.scrollTop=c.scrollHeight;</script>'
+        )
+        st.markdown(chat_html, unsafe_allow_html=True)
+
+        # Input row — text_input + send button side by side
+        inp_c1, inp_c2 = st.columns([5, 1])
+        with inp_c1:
+            user_in = st.text_input(
+                "", placeholder="Ask MoneyMan anything about markets...",
+                key="mm_input", label_visibility="collapsed"
+            )
+        with inp_c2:
+            send = st.button("Send", key="mm_send", use_container_width=True)
+
+        if (send or user_in) and user_in.strip():
+            msg_text = user_in.strip()
+            st.session_state.mm_msgs.append({"role":"user","content":msg_text})
             with st.spinner(""):
-                reply=call_mm(st.session_state.mm_msgs,st.session_state.get("mm_key",""))
+                reply = call_mm(st.session_state.mm_msgs, st.session_state.get("mm_key",""))
             st.session_state.mm_msgs.append({"role":"assistant","content":reply})
             st.rerun()
+
+    with mm_right:
+        st.markdown(lbl("Settings",C=C), unsafe_allow_html=True)
+        api_key = st.text_input(
+            "API Key", "", placeholder="sk-ant-...",
+            key="mm_key", type="password", label_visibility="collapsed"
+        )
+        st.markdown(
+            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;color:{C["TXT3"]};'
+            f'line-height:1.8;padding:4px 0 12px;">console.anthropic.com<br>Session only.</div>',
+            unsafe_allow_html=True
+        )
+        if st.button("Clear Chat", key="mm_clr", use_container_width=True):
+            st.session_state.mm_msgs = []; st.rerun()
+
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        st.markdown(lbl("Quick Prompts",C=C), unsafe_allow_html=True)
+        for qp in QUICK_ASKS:
+            if st.button(qp, key=f"qp_{hash(qp)}", use_container_width=True):
+                st.session_state.mm_msgs.append({"role":"user","content":qp})
+                with st.spinner(""):
+                    reply = call_mm(st.session_state.mm_msgs, st.session_state.get("mm_key",""))
+                st.session_state.mm_msgs.append({"role":"assistant","content":reply})
+                st.rerun()
+
     st.markdown("</div>", unsafe_allow_html=True)
