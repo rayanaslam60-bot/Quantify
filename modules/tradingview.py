@@ -117,21 +117,69 @@ TV_INTERVALS = {
     "1h":"60","2h":"120","4h":"240","1D":"1D","1W":"1W","1M":"1M",
 }
 
+# Known NYSE vs NASDAQ — prevents "symbol not available" errors
+NYSE_STOCKS = {
+    "JPM","GS","MS","BAC","WFC","C","V","MA","JNJ","UNH","PFE","ABBV","MRK","LLY",
+    "ABT","TMO","XOM","CVX","COP","SLB","WMT","HD","MCD","NKE","KO","PEP","PG",
+    "DIS","BA","GE","CAT","MMM","HON","RTX","LMT","BRK.B","BRK.A","T","VZ",
+    "CVS","UPS","FDX","USB","PNC","TFC","COF","AXP","BLK","SCHW","NEE","DUK","SO",
+    "AMT","PLD","CCI","SPG","O","WELL","PSA","EQR","SHW","LIN","APD","ECL","UNP",
+    "CSX","NSC","UBER","SNAP","SQ","SHOP","PLTR","RBLX","COIN","MSTR","TSM","ASML",
+    "SAP","TM","SONY","BP","SHEL","RIO","BHP","HSBC","NIO","BABA","LOW","TGT",
+    "NOW","CRM","ORCL","IBM","ACN","F","GM","SBUX","COST","PM","MO","CL","WBA",
+    "MPC","PSX","VLO","OXY","PXD","EOG","EQIX","DLR","AMT","NET","SNOW","DDOG",
+    "ZS","PANW","CRWD","MDB","GTLB","OKTA","TEAM","WDAY","TWLO","ZM","DOCU",
+}
+
 def get_tv_symbol(yahoo_ticker):
+    """
+    Convert Yahoo Finance ticker to TradingView symbol.
+    Rule: only specify exchange when we KNOW it 100%.
+    For regular stocks, pass bare ticker — TradingView resolves automatically.
+    """
     t = yahoo_ticker.upper().strip()
+
+    # Direct map — only for tickers that need special exchange prefixes
     if t in TV_SYMBOL_MAP:
         return TV_SYMBOL_MAP[t]
-    # Smart fallbacks
+
+    # Crypto
     if t.endswith("-USD"):
-        base = t.replace("-USD","")
+        base = t.replace("-USD", "")
         return f"BINANCE:{base}USDT"
+
+    # Forex
     if t.endswith("=X"):
-        pair = t.replace("=X","")
-        if len(pair)==6:
-            return f"FX:{pair}"
+        pair = t.replace("=X", "")
+        if len(pair) >= 6:
+            return f"FX:{pair[:6]}"
+
+    # Futures
     if t.endswith("=F"):
-        return f"CME:{t.replace('=F','1!')}"
+        base = t.replace("=F", "")
+        futures_map = {
+            "ES":"CME_MINI:ES1!","NQ":"CME_MINI:NQ1!","YM":"CBOT_MINI:YM1!",
+            "RTY":"CME_MINI:RTY1!","GC":"COMEX:GC1!","SI":"COMEX:SI1!",
+            "CL":"NYMEX:CL1!","BZ":"NYMEX:BB1!","NG":"NYMEX:NG1!",
+            "HG":"COMEX:HG1!","ZW":"CBOT:ZW1!","ZC":"CBOT:ZC1!",
+            "ZS":"CBOT:ZS1!","ZN":"CBOT:ZN1!","ZB":"CBOT:ZB1!",
+            "PL":"NYMEX:PL1!","PA":"NYMEX:PA1!",
+            "KC":"ICEUS:KC1!","CC":"ICEUS:CC1!","SB":"ICEUS:SB1!",
+        }
+        if base in futures_map:
+            return futures_map[base]
+        return f"CME:{base}1!"
+
+    # Indices
     if t.startswith("^"):
-        return f"TVC:{t[1:]}"
-    # Default: try NASDAQ first for unknown stocks
-    return f"NASDAQ:{t}"
+        idx_map = {
+            "^VIX":"CBOE:VIX","^GSPC":"SP:SPX","^DJI":"DJ:DJI",
+            "^IXIC":"NASDAQ:COMP","^RUT":"RUSSELL:RUT",
+            "^FTSE":"SPREADEX:FTSE","^DAX":"XETR:DAX",
+            "^N225":"TVC:NI225","^HSI":"TVC:HSI",
+            "^STOXX50E":"EURONEXT:SX5E",
+        }
+        return idx_map.get(t, f"TVC:{t[1:]}")
+
+    # Regular stocks — NO exchange prefix, TradingView finds them automatically
+    return t
