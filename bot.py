@@ -47,11 +47,11 @@ def price_badge(ticker):
     col=UP if chg>=0 else DOWN; sign="+" if chg>=0 else ""
     name=TICKER_MAP.get(ticker,ticker)
     return f"""<div style="padding:16px 0 12px;border-bottom:1px solid {C['BOR']};margin-bottom:12px;">
-        <div style="font-family:'Outfit';font-size:0.7rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:4px;">{name}</div>
+        <div style="font-family:DM Sans,sans-serif;font-size:0.7rem;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:4px;">{name}</div>
         <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
-            <span style="font-family:'Outfit';font-size:2.2rem;font-weight:800;color:{C['TXT1']};letter-spacing:-0.02em;">{ticker}</span>
-            <span style="font-family:'Space Mono';font-size:1.8rem;font-weight:400;color:{C['TXT1']};">{p:,.4f}</span>
-            <span style="font-family:'Space Mono';font-size:0.9rem;color:{col};">{sign}{chg:.4f} ({sign}{pct:.2f}%)</span>
+            <span style="font-family:DM Sans,sans-serif;font-size:2.2rem;font-weight:800;color:{C['TXT1']};letter-spacing:-0.02em;">{ticker}</span>
+            <span style="font-family:IBM Plex Mono,monospace;font-size:1.8rem;font-weight:400;color:{C['TXT1']};">{p:,.4f}</span>
+            <span style="font-family:IBM Plex Mono,monospace;font-size:0.9rem;color:{col};">{sign}{chg:.4f} ({sign}{pct:.2f}%)</span>
         </div>
     </div>"""
 
@@ -155,9 +155,9 @@ with st.sidebar:
             c1,c2=st.columns([1,1])
             with c1:
                 st.markdown(f"""<div>
-                    <div style="font-family:'Space Mono';font-size:0.75rem;font-weight:700;color:{C['TXT1']};">{wt}</div>
-                    <div style="font-family:'Space Mono';font-size:0.68rem;color:{C['TXT2']};">{p2:,.2f}</div>
-                    <div style="font-family:'Space Mono';font-size:0.62rem;color:{col2};">{sign2}{pct2:.2f}%</div>
+                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.75rem;font-weight:700;color:{C['TXT1']};">{wt}</div>
+                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.68rem;color:{C['TXT2']};">{p2:,.2f}</div>
+                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{col2};">{sign2}{pct2:.2f}%</div>
                 </div>""", unsafe_allow_html=True)
             with c2:
                 df_mini=get_data(wt,"2d","30m")
@@ -171,8 +171,8 @@ with st.sidebar:
     elif wd and mm>=960: ms="AFTER"; msc=AMBER
     else: ms="CLOSED"; msc=C['TXT3']
     st.markdown(f"""<div style="text-align:center;padding:8px 0 4px;">
-        <span style="font-family:'Space Mono';font-size:0.62rem;font-weight:700;letter-spacing:0.12em;color:{msc};">NYSE {ms}</span>
-        <span style="font-family:'Space Mono';font-size:0.58rem;color:{C['TXT4']};margin-left:8px;">{now2.strftime('%H:%M')}</span>
+        <span style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;font-weight:700;letter-spacing:0.12em;color:{msc};">NYSE {ms}</span>
+        <span style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;color:{C['TXT4']};margin-left:8px;">{now2.strftime('%H:%M')}</span>
     </div>""", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -584,9 +584,9 @@ elif page=="dashboard":
         if p:
             col=UP if chg>=0 else DOWN; sign="+" if chg>=0 else ""
             idx_cols[i].markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;padding:12px 8px;text-align:center;">
-                <div style="font-family:'Space Mono';font-size:0.56rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:5px;">{nm}</div>
-                <div style="font-family:'Space Mono';font-size:0.9rem;font-weight:700;color:{C['TXT1']};">{p:,.2f}</div>
-                <div style="font-family:'Space Mono';font-size:0.7rem;font-weight:600;color:{col};margin-top:3px;">{sign}{pct:.2f}%</div>
+                <div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:5px;">{nm}</div>
+                <div style="font-family:IBM Plex Mono,monospace;font-size:0.9rem;font-weight:700;color:{C['TXT1']};">{p:,.2f}</div>
+                <div style="font-family:IBM Plex Mono,monospace;font-size:0.7rem;font-weight:600;color:{col};margin-top:3px;">{sign}{pct:.2f}%</div>
             </div>""", unsafe_allow_html=True)
 
     st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
@@ -608,7 +608,7 @@ elif page=="dashboard":
     wl=st.session_state.watchlist
     if not wl:
         st.markdown(f"""<div style="text-align:center;padding:30px;background:{C['BG2']};border:1px solid {C['BOR']};border-radius:12px;margin-bottom:16px;">
-            <div style="font-family:'Plus Jakarta Sans';font-size:0.9rem;color:{C['TXT3']};">Add tickers using the search above.</div>
+            <div style="font-family:Inter,sans-serif;font-size:0.9rem;color:{C['TXT3']};">Add tickers using the search above.</div>
         </div>""", unsafe_allow_html=True)
     else:
         hdr=f'<div style="display:grid;grid-template-columns:100px 1fr 110px 90px 120px 120px;gap:4px;padding:8px 12px;border-bottom:2px solid {C["BOR"]};">'
@@ -628,10 +628,10 @@ elif page=="dashboard":
             name=TICKER_MAP.get(tk,tk)
             st.markdown(f"""<div style="display:grid;grid-template-columns:100px 1fr 110px 90px 120px 120px;
                 gap:4px;padding:9px 12px;border-bottom:1px solid {C['BOR']};align-items:center;">
-                <span style="font-family:'Space Mono';font-size:0.82rem;font-weight:700;color:{C['TXT1']};">{tk}</span>
-                <span style="font-family:'Plus Jakarta Sans';font-size:0.82rem;color:{C['TXT2']};">{name}</span>
-                <span style="font-family:'Space Mono';font-size:0.82rem;font-weight:600;color:{C['TXT2']};text-align:right;">{p2:,.4f}</span>
-                <span style="font-family:'Space Mono';font-size:0.78rem;font-weight:600;color:{pc};text-align:right;">{sign2}{pct2:.2f}%</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.82rem;font-weight:700;color:{C['TXT1']};">{tk}</span>
+                <span style="font-family:Inter,sans-serif;font-size:0.82rem;color:{C['TXT2']};">{name}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.82rem;font-weight:600;color:{C['TXT2']};text-align:right;">{p2:,.4f}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;font-weight:600;color:{pc};text-align:right;">{sign2}{pct2:.2f}%</span>
                 <span style="text-align:center;">{badge(s5)}</span>
                 <span style="text-align:center;">{badge(s1d)}</span>
             </div>""", unsafe_allow_html=True)
@@ -645,20 +645,33 @@ elif page=="dashboard":
         for i,(ct2,cn) in enumerate(CHARTS):
             with ch_cols[i%2]:
                 p2,chg2,pct2=price_info(ct2)
-                col2=UP if (chg2 or 0)>=0 else DOWN; sign2="+" if (chg2 or 0)>=0 else ""
-                st.markdown(f"""<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-                    <span style="font-family:'Outfit';font-size:1rem;font-weight:800;color:{C['TXT1']};">{cn}</span>
-                    <span style="font-family:'Space Mono';font-size:0.78rem;color:{col2};">{sign2}{(pct2 or 0):.2f}%</span>
-                </div>""", unsafe_allow_html=True)
-                render_tv_mini(ct2, tv_theme)
+                col2=UP if (chg2 or 0)>=0 else DOWN
+                sign2="+" if (chg2 or 0)>=0 else ""
+                pct_str=f"{sign2}{(pct2 or 0):.2f}%"
+                price_str=f"{p2:,.2f}" if p2 else "—"
+                st.markdown(
+                    f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">'
+                    f'<div>'
+                    f'<span style="font-family:DM Sans,sans-serif;font-size:0.95rem;font-weight:700;color:{C["TXT1"]};">{cn}</span>'
+                    f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{C["TXT3"]};margin-left:8px;">{price_str}</span>'
+                    f'</div>'
+                    f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.75rem;font-weight:600;color:{col2};">{pct_str}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+                df_dash=get_data(ct2,"5d","5m")
+                if df_dash is not None and len(df_dash)>5:
+                    from modules.charts import mini_chart as _mc
+                    fig_d=_mc(df_dash,C,height=180)
+                    if fig_d: st.plotly_chart(fig_d,use_container_width=True,config={'displayModeBar':False,'scrollZoom':False})
 
     with right:
         st.markdown(lbl("Headlines",C=C), unsafe_allow_html=True)
         for n in fetch_live_news("SPY",10):
             st.markdown(f"""<a href="{n['link']}" target="_blank" style="text-decoration:none;display:block;">
             <div style="border-bottom:1px solid {C['BOR']};padding:9px 0;">
-                <div style="font-family:'Plus Jakarta Sans';font-size:0.82rem;font-weight:500;color:{C['TXT2']};line-height:1.4;margin-bottom:4px;">{n['title']}</div>
-                <div style="font-family:'Space Mono';font-size:0.58rem;color:{C['TXT3']};">{n['source'].upper()} · {n['time']}</div>
+                <div style="font-family:Inter,sans-serif;font-size:0.82rem;font-weight:500;color:{C['TXT2']};line-height:1.4;margin-bottom:4px;">{n['title']}</div>
+                <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;color:{C['TXT3']};">{n['source'].upper()} · {n['time']}</div>
             </div></a>""", unsafe_allow_html=True)
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
         st.markdown(lbl("Sectors",C=C), unsafe_allow_html=True)
@@ -668,10 +681,10 @@ elif page=="dashboard":
             p3,_,pct3=price_info(st_t)
             c3=sig_color(ov3); sign3="+" if (pct3 or 0)>=0 else ""
             st.markdown(f"""<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid {C['BOR']};">
-                <div><span style="font-family:'Space Mono';font-size:0.75rem;font-weight:700;color:{C['TXT1']};">{st_t}</span>
-                     <span style="font-family:'Plus Jakarta Sans';font-size:0.68rem;color:{C['TXT3']};margin-left:6px;">{st_n}</span></div>
-                <span style="font-family:'Outfit';font-size:0.82rem;font-weight:800;color:{c3};">{ov3}</span>
-                <span style="font-family:'Space Mono';font-size:0.7rem;color:{'#00e676' if (pct3 or 0)>=0 else '#ff3d57'};">{sign3}{(pct3 or 0):.2f}%</span>
+                <div><span style="font-family:IBM Plex Mono,monospace;font-size:0.75rem;font-weight:700;color:{C['TXT1']};">{st_t}</span>
+                     <span style="font-family:Inter,sans-serif;font-size:0.68rem;color:{C['TXT3']};margin-left:6px;">{st_n}</span></div>
+                <span style="font-family:DM Sans,sans-serif;font-size:0.82rem;font-weight:800;color:{c3};">{ov3}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.7rem;color:{'#00e676' if (pct3 or 0)>=0 else '#ff3d57'};">{sign3}{(pct3 or 0):.2f}%</span>
             </div>""", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -712,9 +725,9 @@ elif page=="options":
             sc2=sig_color(s)
             st.markdown(f"""<div style="background:{sig_bg(s)};border:1px solid {sig_border(s)};border-radius:12px;
                 padding:14px 20px;margin:14px 0;display:flex;align-items:center;gap:16px;">
-                <span style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};">Options Flow</span>
-                <span style="font-family:'Outfit';font-size:1.6rem;font-weight:900;color:{sc2};">{s}</span>
-                <span style="font-family:'Plus Jakarta Sans';font-size:0.85rem;color:{C['TXT2']};">
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};">Options Flow</span>
+                <span style="font-family:DM Sans,sans-serif;font-size:1.6rem;font-weight:900;color:{sc2};">{s}</span>
+                <span style="font-family:Inter,sans-serif;font-size:0.85rem;color:{C['TXT2']};">
                     {"Heavy put buying" if pcr>1.3 else "Heavy call buying" if pcr<0.7 else "Balanced flow"} · P/C = {pcr:.2f}
                 </span></div>""", unsafe_allow_html=True)
             oc1,oc2=st.columns(2)
@@ -738,8 +751,8 @@ elif page=="news":
 
     # Header with live NY clock
     st.markdown(f"""<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;">
-        <div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};">Live News Feed</div>
-        <div style="font-family:'Space Mono';font-size:0.7rem;font-weight:700;color:{AMBER};">
+        <div style="font-family:DM Sans,sans-serif;font-size:1.8rem;font-weight:900;color:{C['TXT1']};">Live News Feed</div>
+        <div style="font-family:IBM Plex Mono,monospace;font-size:0.7rem;font-weight:700;color:{AMBER};">
             {ny_time()} · Auto-refreshes every 60s
         </div>
     </div>""", unsafe_allow_html=True)
@@ -761,7 +774,7 @@ elif page=="news":
         layout_mode = st.radio("Layout", ["Grid","List"], horizontal=True,
                                 key="news_layout", label_visibility="collapsed")
 
-    st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.58rem;color:{C['TXT3']};
+    st.markdown(f"""<div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;color:{C['TXT3']};
         padding:4px 0 12px;">
         Sources: Reuters · CNBC · MarketWatch · Yahoo Finance · Google News · CoinDesk · Seeking Alpha · Barrons
     </div>""", unsafe_allow_html=True)
@@ -772,12 +785,12 @@ elif page=="news":
     if not news_items:
         st.markdown(f"""<div style="text-align:center;padding:40px;background:{C['BG2']};
             border:1px solid {C['BOR']};border-radius:12px;">
-            <div style="font-family:'Plus Jakarta Sans';font-size:0.95rem;color:{C['TXT3']};">
+            <div style="font-family:Inter,sans-serif;font-size:0.95rem;color:{C['TXT3']};">
                 No news found. Markets may be closed or RSS feeds temporarily unavailable.
             </div>
         </div>""", unsafe_allow_html=True)
     else:
-        st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.62rem;color:{C['TXT3']};
+        st.markdown(f"""<div style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C['TXT3']};
             padding:4px 0 8px;">{len(news_items)} articles loaded</div>""",
             unsafe_allow_html=True)
 
@@ -789,12 +802,12 @@ elif page=="news":
                     st.markdown(f"""<a href="{n['link']}" target="_blank" style="text-decoration:none;display:block;">
                     <div style="background:{C['BG2']};border:1px solid {C['BOR']};border-top:2px solid {src_color};
                         border-radius:12px;padding:16px;margin-bottom:10px;transition:all 0.15s;">
-                        <div style="font-family:'Plus Jakarta Sans';font-size:0.9rem;font-weight:600;
+                        <div style="font-family:Inter,sans-serif;font-size:0.9rem;font-weight:600;
                                      color:{C['TXT1']};line-height:1.45;margin-bottom:10px;">{n['title']}</div>
                         <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <span style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;
+                            <span style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:700;
                                           color:{src_color};letter-spacing:0.06em;">{n['source'].upper()}</span>
-                            <span style="font-family:'Space Mono';font-size:0.6rem;color:{C['TXT3']};">
+                            <span style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;color:{C['TXT3']};">
                                 {n['time']}</span>
                         </div>
                     </div></a>""", unsafe_allow_html=True)
@@ -805,12 +818,12 @@ elif page=="news":
                 <div style="background:{C['BG2']};border-bottom:1px solid {C['BOR']};
                     border-left:3px solid {src_color};padding:12px 16px;margin-bottom:4px;">
                     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
-                        <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;font-weight:500;
+                        <div style="font-family:Inter,sans-serif;font-size:0.88rem;font-weight:500;
                                      color:{C['TXT1']};line-height:1.4;flex:1;">{n['title']}</div>
                         <div style="text-align:right;white-space:nowrap;">
-                            <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;
+                            <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:700;
                                          color:{src_color};">{n['source'].upper()}</div>
-                            <div style="font-family:'Space Mono';font-size:0.58rem;color:{C['TXT3']};">{n['time']}</div>
+                            <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;color:{C['TXT3']};">{n['time']}</div>
                         </div>
                     </div>
                 </div></a>""", unsafe_allow_html=True)
@@ -823,8 +836,8 @@ elif page=="news":
 
 elif page=="backtest":
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
-    st.markdown(f"""<div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:4px;">Backtest Terminal</div>
-    <div style="font-family:'Space Mono';font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:16px;">No-Code Strategy Testing · Any Symbol · Any Timeframe · AI Quant Analysis</div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="font-family:DM Sans,sans-serif;font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:4px;">Backtest Terminal</div>
+    <div style="font-family:IBM Plex Mono,monospace;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:16px;">No-Code Strategy Testing · Any Symbol · Any Timeframe · AI Quant Analysis</div>""", unsafe_allow_html=True)
 
     # Mode selector
     bt_mode = st.radio("", ["Built-in Strategies", "AI Quant Backtester"],
@@ -858,8 +871,8 @@ elif page=="backtest":
             sel_strat=st.selectbox("Strategy",STRATEGY_CATEGORIES[cat],key="bt_strat",label_visibility="collapsed")
         with sc2:
             st.markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:12px;padding:14px 16px;margin-top:4px;">
-                <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">Strategy Description</div>
-                <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};line-height:1.5;">{STRATEGY_DESC.get(sel_strat,'')}</div>
+                <div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">Strategy Description</div>
+                <div style="font-family:Inter,sans-serif;font-size:0.88rem;color:{C['TXT2']};line-height:1.5;">{STRATEGY_DESC.get(sel_strat,'')}</div>
             </div>""", unsafe_allow_html=True)
 
         if st.button("RUN BACKTEST", key="run_bt"):
@@ -872,7 +885,7 @@ elif page=="backtest":
             if df_bt is None or len(df_bt)<10:
                 st.error(f"No data for {bt_ticker} on {bt_tf} / {bt_per}. Try a longer period.")
             else:
-                st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.62rem;color:{C['TXT3']};padding:4px 0;">
+                st.markdown(f"""<div style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C['TXT3']};padding:4px 0;">
                     {len(df_bt)} candles loaded · Running {sel_strat}...</div>""", unsafe_allow_html=True)
                 with st.spinner(f"Running {sel_strat}..."):
                     result,err=run_backtest(df_bt,sel_strat,bt_cap,
@@ -885,11 +898,11 @@ elif page=="backtest":
                     rc=UP if stats['total_return']>=0 else DOWN
                     st.markdown(f"""<div style="background:{'rgba(0,230,118,0.06)' if stats['total_return']>=0 else 'rgba(255,61,87,0.06)'};
                         border:1px solid {rc};border-radius:12px;padding:18px 20px;margin:16px 0;">
-                        <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">
+                        <div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">
                             {bt_ticker} · {bt_tf} · {bt_per} · {sel_strat}</div>
-                        <div style="font-family:'Outfit';font-size:2.6rem;font-weight:900;color:{rc};line-height:1;">
+                        <div style="font-family:DM Sans,sans-serif;font-size:2.6rem;font-weight:900;color:{rc};line-height:1;">
                             {'+' if stats['total_return']>=0 else ''}{stats['total_return']}%</div>
-                        <div style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};margin-top:4px;">
+                        <div style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;color:{C['TXT2']};margin-top:4px;">
                             ${stats['initial']:,} → ${stats['final_equity']:,} · {stats['total_trades']} trades</div>
                     </div>""", unsafe_allow_html=True)
                     si=[
@@ -905,8 +918,8 @@ elif page=="backtest":
                     sc_cols=st.columns(8)
                     for i2,(lbl2,val,col2) in enumerate(si):
                         sc_cols[i2].markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;padding:12px;text-align:center;">
-                            <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:4px;">{lbl2}</div>
-                            <div style="font-family:'Space Mono';font-size:0.95rem;font-weight:700;color:{col2};">{val}</div>
+                            <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:4px;">{lbl2}</div>
+                            <div style="font-family:IBM Plex Mono,monospace;font-size:0.95rem;font-weight:700;color:{col2};">{val}</div>
                         </div>""", unsafe_allow_html=True)
                     fig_eq=go.Figure(go.Scatter(x=eq_df.index,y=eq_df['equity'],
                         line=dict(color=rc,width=1.5),fill='tozeroy',
@@ -937,8 +950,8 @@ elif page=="backtest":
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,rgba(41,121,255,0.08),rgba(0,230,118,0.04));
             border:1px solid {BLUE}44;border-radius:12px;padding:16px 20px;margin-bottom:16px;">
-            <div style="font-family:'Outfit';font-size:1.2rem;font-weight:800;color:{C['TXT1']};margin-bottom:4px;">AI Quant Analyst</div>
-            <div style="font-family:'Plus Jakarta Sans';font-size:0.85rem;color:{C['TXT2']};line-height:1.5;">
+            <div style="font-family:DM Sans,sans-serif;font-size:1.2rem;font-weight:800;color:{C['TXT1']};margin-bottom:4px;">AI Quant Analyst</div>
+            <div style="font-family:Inter,sans-serif;font-size:0.85rem;color:{C['TXT2']};line-height:1.5;">
                 Describe any trading strategy in plain English. The AI will analyse the market data,
                 evaluate your strategy's technical validity, generate signals, run the backtest,
                 and give you a full institutional-grade report — even on short timeframes.
@@ -1068,10 +1081,10 @@ Be specific, quantitative, and blunt. No fluff."""
                 # Display analysis
                 st.markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};
                     border-radius:12px;padding:20px;margin:12px 0;">
-                    <div style="font-family:'Space Mono';font-size:0.62rem;font-weight:700;
+                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;font-weight:700;
                                  letter-spacing:0.14em;text-transform:uppercase;color:{BLUE};margin-bottom:12px;">
                         AI QUANT ANALYSIS — {bt_ticker} · {bt_tf}</div>
-                    <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};
+                    <div style="font-family:Inter,sans-serif;font-size:0.88rem;color:{C['TXT2']};
                                  line-height:1.7;white-space:pre-wrap;">{analysis}</div>
                 </div>""", unsafe_allow_html=True)
 
@@ -1149,7 +1162,7 @@ Rules:
                                     'return':round((p_f-ep)/ep*100,2),'pnl':round(shares*(p_f-ep),2)})
 
                             sig_count = int((signals_clean!=0).sum())
-                            st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.65rem;color:{C['TXT3']};padding:6px 0;">
+                            st.markdown(f"""<div style="font-family:IBM Plex Mono,monospace;font-size:0.65rem;color:{C['TXT3']};padding:6px 0;">
                                 {sig_count} signals generated on {len(df_ai)} candles</div>""",
                                 unsafe_allow_html=True)
 
@@ -1174,11 +1187,11 @@ Rules:
                                 rc2=UP if total_ret>=0 else DOWN
                                 st.markdown(f"""<div style="background:{'rgba(0,230,118,0.06)' if total_ret>=0 else 'rgba(255,61,87,0.06)'};
                                     border:1px solid {rc2};border-radius:12px;padding:18px 20px;margin:12px 0;">
-                                    <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">
+                                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:6px;">
                                         AI STRATEGY BACKTEST — {bt_ticker} · {bt_tf} · {bt_per}</div>
-                                    <div style="font-family:'Outfit';font-size:2.4rem;font-weight:900;color:{rc2};line-height:1;">
+                                    <div style="font-family:DM Sans,sans-serif;font-size:2.4rem;font-weight:900;color:{rc2};line-height:1;">
                                         {'+' if total_ret>=0 else ''}{total_ret:.2f}%</div>
-                                    <div style="font-family:'Space Mono';font-size:0.75rem;color:{C['TXT2']};margin-top:4px;">
+                                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.75rem;color:{C['TXT2']};margin-top:4px;">
                                         ${bt_cap:,} → ${fe:,.2f} · {len(trades)} trades · Win Rate {wr:.1f}%</div>
                                 </div>""", unsafe_allow_html=True)
 
@@ -1193,8 +1206,8 @@ Rules:
                                 sc2_cols=st.columns(8)
                                 for i3,(lbl3,val3,col3) in enumerate(si2):
                                     sc2_cols[i3].markdown(f"""<div style="background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;padding:10px;text-align:center;">
-                                        <div style="font-family:'Space Mono';font-size:0.55rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:3px;">{lbl3}</div>
-                                        <div style="font-family:'Space Mono';font-size:0.9rem;font-weight:700;color:{col3};">{val3}</div>
+                                        <div style="font-family:IBM Plex Mono,monospace;font-size:0.55rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:{C['TXT3']};margin-bottom:3px;">{lbl3}</div>
+                                        <div style="font-family:IBM Plex Mono,monospace;font-size:0.9rem;font-weight:700;color:{col3};">{val3}</div>
                                     </div>""", unsafe_allow_html=True)
 
                                 fig_eq2=go.Figure(go.Scatter(x=eq_df2.index,y=eq_df2['equity'],
@@ -1234,7 +1247,7 @@ Rules:
 
 elif page=="portfolio":
     st.markdown(f"<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
-    st.markdown(f"""<div style="font-family:'Outfit';font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:16px;">Portfolio</div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div style="font-family:DM Sans,sans-serif;font-size:1.8rem;font-weight:900;color:{C['TXT1']};margin-bottom:16px;">Portfolio</div>""", unsafe_allow_html=True)
     pc1,pc2,pc3,pc4,pc5=st.columns([2,1,1,1,1])
     port_q=pc1.text_input("Symbol","",placeholder="Symbol...",key="port_q",label_visibility="collapsed")
     port_m=search_tickers(port_q) if port_q else []
@@ -1250,7 +1263,7 @@ elif page=="portfolio":
         st.rerun()
     if not st.session_state.portfolio:
         st.markdown(f"""<div style="text-align:center;padding:40px;background:{C['BG2']};border:1px solid {C['BOR']};border-radius:12px;margin:16px 0;">
-            <div style="font-family:'Plus Jakarta Sans';font-size:1rem;color:{C['TXT3']};">Add positions above to track your portfolio.</div>
+            <div style="font-family:Inter,sans-serif;font-size:1rem;color:{C['TXT3']};">Add positions above to track your portfolio.</div>
         </div>""", unsafe_allow_html=True)
     else:
         total_val=0;total_cost=0;positions=[]
@@ -1277,13 +1290,13 @@ elif page=="portfolio":
             pc2=UP if pos['pnl']>=0 else DOWN; sign2="+" if pos['pnl']>=0 else ""
             st.markdown(f"""<div style="display:grid;grid-template-columns:90px 80px 90px 100px 110px 110px 130px 60px;
                 gap:4px;padding:8px 12px;border-bottom:1px solid {C['BOR']};align-items:center;">
-                <span style="font-family:'Space Mono';font-size:0.8rem;font-weight:700;color:{C['TXT1']};">{pos['ticker']}</span>
-                <span style="font-family:'Space Mono';font-size:0.7rem;color:{C['TXT3']};">{pos['type']}</span>
-                <span style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};">{pos['qty']}</span>
-                <span style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};">${pos['cost']:.4f}</span>
-                <span style="font-family:'Space Mono';font-size:0.78rem;font-weight:600;color:{C['TXT1']};">${pos['price']:.4f}</span>
-                <span style="font-family:'Space Mono';font-size:0.78rem;color:{C['TXT2']};">${pos['value']:,.2f}</span>
-                <span style="font-family:'Space Mono';font-size:0.78rem;font-weight:700;color:{pc2};">{sign2}${pos['pnl']:,.2f} ({sign2}{pos['pnl_pct']:.2f}%)</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.8rem;font-weight:700;color:{C['TXT1']};">{pos['ticker']}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.7rem;color:{C['TXT3']};">{pos['type']}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;color:{C['TXT2']};">{pos['qty']}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;color:{C['TXT2']};">${pos['cost']:.4f}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;font-weight:600;color:{C['TXT1']};">${pos['price']:.4f}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;color:{C['TXT2']};">${pos['value']:,.2f}</span>
+                <span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;font-weight:700;color:{pc2};">{sign2}${pos['pnl']:,.2f} ({sign2}{pos['pnl_pct']:.2f}%)</span>
             </div>""", unsafe_allow_html=True)
             if st.button("Remove",key=f"rm_{idx2}"):
                 st.session_state.portfolio.pop(idx2); st.rerun()
@@ -1308,7 +1321,7 @@ elif page=="moneyman":
     with right2:
         st.markdown(lbl("API Key",C=C), unsafe_allow_html=True)
         api_key=st.text_input("","",placeholder="sk-ant-...",key="mm_key",type="password",label_visibility="collapsed")
-        st.markdown(f"""<div style="font-family:'Space Mono';font-size:0.62rem;color:{C['TXT3']};line-height:1.8;padding:6px 0 14px;">
+        st.markdown(f"""<div style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C['TXT3']};line-height:1.8;padding:6px 0 14px;">
             console.anthropic.com<br>Session only. Never saved.</div>""", unsafe_allow_html=True)
         st.markdown(lbl("Quick Prompts",C=C), unsafe_allow_html=True)
         for qp in QUICK_ASKS:
@@ -1321,25 +1334,25 @@ elif page=="moneyman":
         if st.button("CLEAR",key="mm_clr"): st.session_state.mm_msgs=[]; st.rerun()
     with left2:
         st.markdown(f"""<div style="padding:0 0 14px;border-bottom:1px solid {C['BOR']};margin-bottom:14px;">
-            <div style="font-family:'Outfit';font-size:2rem;font-weight:900;color:{C['TXT1']};letter-spacing:-0.02em;">MoneyMan</div>
-            <div style="font-family:'Space Mono';font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-top:3px;">
+            <div style="font-family:DM Sans,sans-serif;font-size:2rem;font-weight:900;color:{C['TXT1']};letter-spacing:-0.02em;">MoneyMan</div>
+            <div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:{C['TXT3']};margin-top:3px;">
                 30-Year Veteran · Goldman Sachs · Macro & Equities</div>
         </div>""", unsafe_allow_html=True)
         chat_html=f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:12px;padding:16px;height:520px;overflow-y:auto;margin-bottom:12px;">'
         if not st.session_state.mm_msgs:
             chat_html+=f"""<div style="padding:50px 0;text-align:center;">
-                <div style="font-family:'Plus Jakarta Sans';font-size:1rem;font-weight:500;color:{C['TXT3']};line-height:2.4;">
+                <div style="font-family:Inter,sans-serif;font-size:1rem;font-weight:500;color:{C['TXT3']};line-height:2.4;">
                     MoneyMan is online.<br>Ask about any market, trade, or strategy.</div></div>"""
         for msg in st.session_state.mm_msgs:
             if msg['role']=='user':
                 chat_html+=f"""<div style="background:{C['BG1']};border-left:3px solid {BLUE};padding:12px 16px;margin:8px 0;border-radius:0 12px 12px 0;">
-                    <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{BLUE};margin-bottom:6px;">YOU</div>
-                    <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};line-height:1.55;">{msg['content']}</div>
+                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{BLUE};margin-bottom:6px;">YOU</div>
+                    <div style="font-family:Inter,sans-serif;font-size:0.88rem;color:{C['TXT2']};line-height:1.55;">{msg['content']}</div>
                 </div>"""
             else:
                 chat_html+=f"""<div style="background:{C['BG1']};border-left:3px solid {UP};padding:12px 16px;margin:8px 0;border-radius:0 12px 12px 0;">
-                    <div style="font-family:'Space Mono';font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{UP};margin-bottom:6px;">MONEYMAN</div>
-                    <div style="font-family:'Plus Jakarta Sans';font-size:0.88rem;color:{C['TXT2']};line-height:1.6;">{msg['content'].replace(chr(10),'<br>')}</div>
+                    <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:{UP};margin-bottom:6px;">MONEYMAN</div>
+                    <div style="font-family:Inter,sans-serif;font-size:0.88rem;color:{C['TXT2']};line-height:1.6;">{msg['content'].replace(chr(10),'<br>')}</div>
                 </div>"""
         chat_html+='</div>'; st.markdown(chat_html, unsafe_allow_html=True)
         user_in=st.chat_input("Ask MoneyMan...")
