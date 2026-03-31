@@ -38,13 +38,10 @@ def inject_css(C):
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
 
 *{{box-sizing:border-box;margin:0;padding:0;}}
-
 html,body,[class*="css"]{{
     font-family:'Inter',sans-serif;
-    background:{C['BG0']};
-    color:{C['TXT2']};
-    font-size:13px;
-    -webkit-font-smoothing:antialiased;
+    background:{C['BG0']};color:{C['TXT2']};
+    font-size:13px;-webkit-font-smoothing:antialiased;
 }}
 .stApp{{background:{C['BG0']};}}
 .main .block-container{{padding:0;max-width:100%;}}
@@ -57,256 +54,189 @@ html,body,[class*="css"]{{
 
 /* Sidebar */
 section[data-testid="stSidebar"]{{
-    background:{C['BG1']};
-    border-right:1px solid {C['BOR']};
-    width:260px!important;
-    min-height:100vh;
+    background:{C['BG1']};border-right:1px solid {C['BOR']};
+    width:260px!important;min-height:100vh;
 }}
 section[data-testid="stSidebar"] .block-container{{padding:0;}}
 section[data-testid="stSidebar"] > div{{padding:0!important;}}
 
 /* Hide Streamlit chrome */
-#MainMenu{{display:none;}}
-footer{{display:none;}}
-header{{display:none;}}
-.stDeployButton{{display:none;}}
-[data-testid="stToolbar"]{{display:none;}}
+#MainMenu{{display:none;}}footer{{display:none;}}header{{display:none;}}
+.stDeployButton{{display:none;}}[data-testid="stToolbar"]{{display:none;}}
 
 /* Tabs */
 .stTabs [data-baseweb="tab-list"]{{
-    background:transparent;
-    border-bottom:1px solid {C['BOR']};
+    background:transparent;border-bottom:1px solid {C['BOR']};
     gap:0;padding:0 20px;
 }}
 .stTabs [data-baseweb="tab"]{{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.68rem;font-weight:500;
-    letter-spacing:0.06em;text-transform:uppercase;
-    color:{C['TXT3']};padding:12px 16px;
-    border-radius:0;background:transparent;
-    border:none;border-bottom:2px solid transparent;
-    transition:color 0.15s,border-color 0.15s;
+    font-family:'IBM Plex Mono',monospace;font-size:0.68rem;font-weight:500;
+    letter-spacing:0.06em;text-transform:uppercase;color:{C['TXT3']};
+    padding:12px 16px;border-radius:0;background:transparent;
+    border:none;border-bottom:2px solid transparent;transition:color 0.15s;
 }}
 .stTabs [data-baseweb="tab"]:hover{{color:{C['TXT2']};}}
 .stTabs [aria-selected="true"]{{
-    color:{C['TXT1']}!important;
-    border-bottom:2px solid {C['BLUE']}!important;
+    color:{C['TXT1']}!important;border-bottom:2px solid {C['BLUE']}!important;
 }}
 
 /* Metrics */
 div[data-testid="stMetricValue"]{{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:1.05rem;font-weight:600;color:{C['TXT1']};
+    font-family:'IBM Plex Mono',monospace;font-size:1.05rem;font-weight:600;color:{C['TXT1']};
 }}
 div[data-testid="stMetricLabel"]{{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.6rem;font-weight:500;
+    font-family:'IBM Plex Mono',monospace;font-size:0.6rem;font-weight:500;
     letter-spacing:0.1em;text-transform:uppercase;color:{C['TXT3']};
 }}
 div[data-testid="metric-container"]{{
     background:{C['BG2']};border:1px solid {C['BOR']};
-    border-radius:6px;padding:14px 16px;
-    transition:border-color 0.15s;
+    border-radius:6px;padding:14px 16px;transition:border-color 0.15s;
 }}
 div[data-testid="metric-container"]:hover{{border-color:{C['BOR2']};}}
 
 /* Inputs */
 .stSelectbox>div>div,.stMultiSelect>div>div{{
-    background:{C['BG2']};border:1px solid {C['BOR']};
-    border-radius:6px;font-family:'IBM Plex Mono',monospace;
-    font-size:0.78rem;color:{C['TXT2']};
-    transition:border-color 0.15s;
+    background:{C['BG2']};border:1px solid {C['BOR']};border-radius:6px;
+    font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:{C['TXT2']};
 }}
-.stSelectbox>div>div:focus-within{{border-color:{C['BLUE']};}}
 .stTextInput>div>div>input{{
-    background:{C['BG2']};border:1px solid {C['BOR']};
-    border-radius:6px;font-family:'Inter',sans-serif;
-    font-size:0.85rem;color:{C['TXT1']};padding:9px 12px;
+    background:{C['BG2']};border:1px solid {C['BOR']};border-radius:6px;
+    font-family:'Inter',sans-serif;font-size:0.85rem;color:{C['TXT1']};padding:9px 12px;
     transition:border-color 0.15s;
 }}
 .stTextInput>div>div>input:focus{{border-color:{C['BLUE']};outline:none;}}
 .stTextInput>div>div>input::placeholder{{color:{C['TXT3']};}}
 .stNumberInput>div>div>input{{
-    background:{C['BG2']};border:1px solid {C['BOR']};
-    border-radius:6px;font-family:'IBM Plex Mono',monospace;
-    font-size:0.78rem;color:{C['TXT1']};
+    background:{C['BG2']};border:1px solid {C['BOR']};border-radius:6px;
+    font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:{C['TXT1']};
 }}
 .stTextArea>div>div>textarea{{
-    background:{C['BG2']};border:1px solid {C['BOR']};
-    border-radius:6px;font-family:'Inter',sans-serif;
-    font-size:0.85rem;color:{C['TXT1']};
-    transition:border-color 0.15s;
+    background:{C['BG2']};border:1px solid {C['BOR']};border-radius:6px;
+    font-family:'Inter',sans-serif;font-size:0.85rem;color:{C['TXT1']};
 }}
-.stTextArea>div>div>textarea:focus{{border-color:{C['BLUE']};}}
 
 /* Checkboxes and radios */
 .stCheckbox label p{{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.68rem;font-weight:500;
+    font-family:'IBM Plex Mono',monospace;font-size:0.68rem;font-weight:500;
     letter-spacing:0.05em;text-transform:uppercase;color:{C['TXT3']};
 }}
-.stRadio label{{
-    font-family:'Inter',sans-serif;
-    font-size:0.82rem;font-weight:400;color:{C['TXT2']};
+.stRadio label{{font-family:'Inter',sans-serif;font-size:0.82rem;color:{C['TXT2']};}}
+
+/* ── SLIDER — clean, no blue highlights on numbers ── */
+.stSlider {{padding:0 2px;}}
+/* Track */
+.stSlider [data-baseweb="slider"] [role="slider"] ~ div:first-of-type {{
+    background:{C['BOR2']}!important;
+}}
+/* Filled track */
+.stSlider [data-baseweb="slider"] div[class*="Track"] > div {{
+    background:{C['BLUE']}!important;
+}}
+/* Thumb */
+.stSlider [data-baseweb="slider"] [role="slider"] {{
+    background:{C['BG1']}!important;
+    border:2px solid {C['BLUE']}!important;
+    box-shadow:0 0 0 3px {C['BG0']}!important;
+    width:16px!important;height:16px!important;
+    transition:border-color 0.15s,box-shadow 0.15s;
+}}
+.stSlider [data-baseweb="slider"] [role="slider"]:hover {{
+    border-color:{C['CYAN']}!important;
+    box-shadow:0 0 0 4px rgba(6,182,212,0.15)!important;
+}}
+/* Value labels — plain text, NO blue highlight box */
+.stSlider [data-testid="stTickBarMin"],
+.stSlider [data-testid="stTickBarMax"] {{
+    color:{C['TXT3']}!important;
+    font-family:'IBM Plex Mono',monospace!important;
+    font-size:0.65rem!important;
+    background:transparent!important;
+    padding:0!important;
+    border:none!important;
+}}
+/* The floating value tooltip above thumb */
+.stSlider [data-baseweb="tooltip"] {{
+    background:{C['BG2']}!important;
+    border:1px solid {C['BOR']}!important;
+    color:{C['TXT2']}!important;
+    font-family:'IBM Plex Mono',monospace!important;
+    font-size:0.68rem!important;
+    padding:3px 8px!important;
+    border-radius:4px!important;
+    box-shadow:none!important;
+}}
+/* Remove blue background from slider label/value display */
+.stSlider > label {{
+    color:{C['TXT3']}!important;
+    font-family:'IBM Plex Mono',monospace!important;
+    font-size:0.65rem!important;font-weight:500!important;
+    letter-spacing:0.06em!important;text-transform:uppercase!important;
+}}
+div[data-testid="stSliderTickBarContainer"] span {{
+    color:{C['TXT3']}!important;
+    background:transparent!important;
+    font-family:'IBM Plex Mono',monospace!important;
+    font-size:0.64rem!important;
+}}
+/* Kill any blue-highlight spans inside slider */
+.stSlider span[style*="background"],
+.stSlider div[style*="background-color: rgb(49, 130, 206)"],
+.stSlider div[style*="background-color: rgb(11, 97, 167)"] {{
+    background:transparent!important;
+    color:{C['TXT2']}!important;
 }}
 
 /* Buttons */
 .stButton>button{{
-    background:{C['BG2']};
-    border:1px solid {C['BOR']};
-    color:{C['TXT2']};
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.68rem;font-weight:500;
-    letter-spacing:0.06em;
-    padding:8px 16px;border-radius:6px;
-    text-transform:uppercase;
-    transition:all 0.15s ease;
-    cursor:pointer;
+    background:{C['BG2']};border:1px solid {C['BOR']};color:{C['TXT2']};
+    font-family:'IBM Plex Mono',monospace;font-size:0.68rem;font-weight:500;
+    letter-spacing:0.06em;padding:8px 16px;border-radius:6px;
+    text-transform:uppercase;transition:all 0.15s ease;cursor:pointer;
 }}
 .stButton>button:hover{{
-    background:{C['BG3']};
-    border-color:{C['BOR2']};
-    color:{C['TXT1']};
-    transform:translateY(-1px);
-    box-shadow:0 4px 12px rgba(0,0,0,0.3);
+    background:{C['BG3']};border-color:{C['BOR2']};color:{C['TXT1']};
+    transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.3);
 }}
 .stButton>button:active{{transform:translateY(0);}}
 
-/* Primary button variant via container class */
-.primary-btn .stButton>button{{
-    background:{C['BLUE']};
-    border-color:{C['BLUE']};
-    color:#ffffff;
-}}
-.primary-btn .stButton>button:hover{{
-    background:#2563eb;
-    border-color:#2563eb;
-    color:#ffffff;
-}}
-
 /* Expander */
 .streamlit-expanderHeader{{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.68rem;font-weight:500;
-    letter-spacing:0.08em;text-transform:uppercase;
-    color:{C['TXT3']};background:{C['BG1']};
-    border:1px solid {C['BOR']};border-radius:6px;
-    padding:10px 14px;
-    transition:all 0.15s;
+    font-family:'IBM Plex Mono',monospace;font-size:0.68rem;font-weight:500;
+    letter-spacing:0.08em;text-transform:uppercase;color:{C['TXT3']};
+    background:{C['BG1']};border:1px solid {C['BOR']};border-radius:6px;
+    padding:10px 14px;transition:all 0.15s;
 }}
 .streamlit-expanderHeader:hover{{color:{C['TXT2']};border-color:{C['BOR2']};}}
 
 /* DataFrames */
 .stDataFrame{{border:1px solid {C['BOR']};border-radius:6px;overflow:hidden;}}
 .stDataFrame th{{
-    background:{C['BG2']};
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.65rem;font-weight:600;
-    letter-spacing:0.08em;text-transform:uppercase;
-    color:{C['TXT3']};
+    background:{C['BG2']};font-family:'IBM Plex Mono',monospace;
+    font-size:0.65rem;font-weight:600;letter-spacing:0.08em;
+    text-transform:uppercase;color:{C['TXT3']};
 }}
 .stDataFrame td{{
-    font-family:'IBM Plex Mono',monospace;
-    font-size:0.75rem;color:{C['TXT2']};
-    border-color:{C['BOR']};
+    font-family:'IBM Plex Mono',monospace;font-size:0.75rem;
+    color:{C['TXT2']};border-color:{C['BOR']};
 }}
 
 /* Chat */
-.stChatInput>div{{
-    background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;
-}}
-.stChatInput textarea{{
-    font-family:'Inter',sans-serif;
-    font-size:0.85rem;color:{C['TXT1']};background:{C['BG2']};
-}}
+.stChatInput>div{{background:{C['BG2']};border:1px solid {C['BOR']};border-radius:8px;}}
+.stChatInput textarea{{font-family:'Inter',sans-serif;font-size:0.85rem;color:{C['TXT1']};background:{C['BG2']};}}
 
 /* Dividers */
 hr{{border:none;border-top:1px solid {C['BOR']};margin:16px 0;}}
 
-/* Slider */
-.stSlider>div>div>div{{background:{C['BLUE']};}}
-
-/* Plotly chart container */
-.js-plotly-plot{{border-radius:0;}}
-
-/* Progress bars */
-.stProgress>div>div{{background:{C['BLUE']};}}
-
-/* Spinner */
-.stSpinner>div{{border-color:{C['BLUE']} transparent transparent transparent;}}
-
-/* Plotly chart drag cursor */
+/* Plotly charts — pan cursor */
 .js-plotly-plot .plotly .drag{{cursor:grab!important;}}
 .js-plotly-plot .plotly .drag:active{{cursor:grabbing!important;}}
-.js-plotly-plot .plotly {{user-select:none;}}
+.js-plotly-plot .plotly{{user-select:none;}}
+.modebar,.modebar-container{{display:none!important;}}
 
-/* Remove Plotly mode bar completely */
-.modebar{{display:none!important;}}
-.modebar-container{{display:none!important;}}
-
-/* Alerts */
-.stAlert{{border-radius:6px;font-family:'Inter',sans-serif;font-size:0.82rem;}}
-
-/* Status dots */
-.status-dot{{
-    display:inline-block;width:6px;height:6px;border-radius:50%;
-    background:{C['UP']};margin-right:6px;
-    animation:pulse 2s infinite;
-}}
-@keyframes pulse{{
-    0%{{opacity:1;}}
-    50%{{opacity:0.4;}}
-    100%{{opacity:1;}}
-}}
-
-/* Card styles */
-.card{{
-    background:{C['BG2']};border:1px solid {C['BOR']};
-    border-radius:6px;padding:16px;
-    transition:border-color 0.15s,box-shadow 0.15s;
-}}
-.card:hover{{
-    border-color:{C['BOR2']};
-    box-shadow:0 4px 20px rgba(0,0,0,0.2);
-}}
-
-/* Table rows */
-.data-row{{
-    padding:8px 12px;border-bottom:1px solid {C['BOR']};
-    transition:background 0.1s;
-}}
-.data-row:hover{{background:{C['BG2']};}}
-
-/* Sidebar nav items */
-.nav-item{{
-    padding:8px 16px;cursor:pointer;
-    border-left:2px solid transparent;
-    transition:all 0.15s;
-    font-family:'Inter',sans-serif;
-    font-size:0.82rem;font-weight:500;
-    color:{C['TXT2']};
-}}
-.nav-item:hover{{
-    background:{C['BG2']};
-    color:{C['TXT1']};
-    border-left-color:{C['BOR2']};
-}}
-.nav-item.active{{
-    background:{C['BG2']};
-    color:{C['TXT1']};
-    border-left-color:{C['BLUE']};
-}}
-
-/* Plotly — remove blue selection highlight */
-.zoomlayer .select-outline {{fill:rgba(0,0,0,0)!important;stroke:{C['BOR2']}!important;stroke-dasharray:2px!important;}}
-.js-plotly-plot .plotly .select-outline {{stroke:{C['BOR2']}!important;fill:rgba(0,0,0,0)!important;}}
-/* Plotly hover box styling */
-.js-plotly-plot .plotly .hovertext rect {{fill:{C['BG1']}!important;stroke:{C['BOR2']}!important;opacity:0.96!important;}}
-.js-plotly-plot .plotly .hovertext text {{fill:{C['TXT2']}!important;}}
-/* Range slider handle colour */
-.rangeslider-grabber-min path, .rangeslider-grabber-max path {{fill:{C['TXT3']}!important;stroke:{C['BOR']}!important;}}
-.rangeslider-mask-min, .rangeslider-mask-max {{fill:{C['BG0']}!important;opacity:0.75;}}
-.rangeslider-slidebox {{fill:{C['BG2']}!important;stroke:{C['BOR']}!important;}}
+/* Progress */
+.stProgress>div>div{{background:{C['BLUE']};}}
+.stSpinner>div{{border-color:{C['BLUE']} transparent transparent transparent;}}
+hr{{border:none;border-top:1px solid {C['BOR']};margin:16px 0;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -314,42 +244,33 @@ def lbl(t, size="0.62rem", C=None):
     color = C['TXT3'] if C else '#3d4452'
     return f'<div style="font-family:IBM Plex Mono,monospace;font-size:{size};font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{color};margin-bottom:8px;">{t}</div>'
 
+def signal_badge(signal, C=None):
+    C = C or {}
+    UP=C.get('UP','#00c97a'); DOWN=C.get('DOWN','#e8384a')
+    TXT2=C.get('TXT2','#8892a4'); BG2=C.get('BG2','#111318'); BOR=C.get('BOR','#1e2128')
+    if "BUY" in signal:
+        col,bg,border="#ffffff","rgba(0,201,122,0.15)","rgba(0,201,122,0.4)"
+    elif "SELL" in signal:
+        col,bg,border="#ffffff","rgba(232,56,74,0.15)","rgba(232,56,74,0.4)"
+    else:
+        col,bg,border=TXT2,BG2,BOR
+    return f'<span style="background:{bg};color:{col};border:1px solid {border};font-family:IBM Plex Mono,monospace;font-size:0.65rem;font-weight:600;padding:3px 9px;border-radius:4px;letter-spacing:0.06em;">{signal}</span>'
+
 def section_header(title, subtitle="", C=None):
     C = C or {}
-    t1 = C.get('TXT1','#e8eaf0'); t3 = C.get('TXT3','#3d4452')
-    sub_html = f'<div style="font-family:Inter,sans-serif;font-size:0.78rem;color:{t3};margin-top:3px;">{subtitle}</div>' if subtitle else ''
-    return f'''<div style="padding:0 0 16px;">
-        <div style="font-family:DM Sans,sans-serif;font-size:1.4rem;font-weight:700;color:{t1};letter-spacing:-0.01em;">{title}</div>
-        {sub_html}
-    </div>'''
+    t1=C.get('TXT1','#e8eaf0'); t3=C.get('TXT3','#3d4452')
+    sub = f'<div style="font-family:Inter,sans-serif;font-size:0.78rem;color:{t3};margin-top:3px;">{subtitle}</div>' if subtitle else ''
+    return f'<div style="padding:0 0 16px;"><div style="font-family:DM Sans,sans-serif;font-size:1.4rem;font-weight:700;color:{t1};letter-spacing:-0.01em;">{title}</div>{sub}</div>'
 
 def stat_card(label, value, change=None, change_pct=None, C=None):
     C = C or {}
     UP=C.get('UP','#00c97a'); DOWN=C.get('DOWN','#e8384a')
     t1=C.get('TXT1','#e8eaf0'); t3=C.get('TXT3','#3d4452')
     bg=C.get('BG2','#111318'); bor=C.get('BOR','#1e2128')
-    chg_html=""
+    chg=""
     if change is not None:
-        col = UP if change >= 0 else DOWN
-        sign = "+" if change >= 0 else ""
-        chg_html = f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{col};margin-top:2px;">{sign}{change:,.4f}'
-        if change_pct is not None:
-            chg_html += f' ({sign}{change_pct:.2f}%)'
-        chg_html += '</div>'
-    return f'''<div style="background:{bg};border:1px solid {bor};border-radius:6px;padding:14px 16px;">
-        <div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{t3};margin-bottom:5px;">{label}</div>
-        <div style="font-family:IBM Plex Mono,monospace;font-size:1rem;font-weight:600;color:{t1};">{value}</div>
-        {chg_html}
-    </div>'''
-
-def signal_badge(signal, C=None):
-    C = C or {}
-    UP=C.get('UP','#00c97a'); DOWN=C.get('DOWN','#e8384a')
-    TXT2=C.get('TXT2','#8892a4'); BG2=C.get('BG2','#111318'); BOR=C.get('BOR','#1e2128')
-    if "BUY" in signal:
-        col,bg,border="#ffffff",f"rgba(0,201,122,0.15)","rgba(0,201,122,0.4)"
-    elif "SELL" in signal:
-        col,bg,border="#ffffff",f"rgba(232,56,74,0.15)","rgba(232,56,74,0.4)"
-    else:
-        col,bg,border=TXT2,BG2,BOR
-    return f'<span style="background:{bg};color:{col};border:1px solid {border};font-family:IBM Plex Mono,monospace;font-size:0.65rem;font-weight:600;padding:3px 9px;border-radius:4px;letter-spacing:0.06em;">{signal}</span>'
+        col=UP if change>=0 else DOWN; sign="+" if change>=0 else ""
+        chg=f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{col};margin-top:2px;">{sign}{change:,.4f}'
+        if change_pct is not None: chg+=f' ({sign}{change_pct:.2f}%)'
+        chg+='</div>'
+    return f'<div style="background:{bg};border:1px solid {bor};border-radius:6px;padding:14px 16px;"><div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{t3};margin-bottom:5px;">{label}</div><div style="font-family:IBM Plex Mono,monospace;font-size:1rem;font-weight:600;color:{t1};">{value}</div>{chg}</div>'

@@ -19,7 +19,9 @@ from modules.charts      import base_layout, mini_chart, CFG, CFG0
 from modules.moneyman    import call_mm, QUICK_ASKS
 from modules.backtest    import STRATEGY_CATEGORIES, STRATEGY_DESC, run_backtest
 from modules.tradingview import get_tv_symbol, TV_INTERVALS
-from modules.financials  import (get_financials, get_info, render_key_stats,
+from modules.financials  import (get_financials, get_info, get_asset_type,
+                                  ASSET_TABS, ASSET_INDICATORS,
+                                  render_key_stats, render_market_data,
                                   render_income_statement, render_balance_sheet,
                                   render_cashflow, render_dcf_model,
                                   render_comps, render_analyst_data, render_ownership,
@@ -177,75 +179,82 @@ with st.sidebar:
     st.markdown("</div>", unsafe_allow_html=True)
 
 def render_symbol_page(ticker):
-    """Full institutional symbol workspace"""
+    """Asset-aware institutional symbol workspace"""
     import streamlit.components.v1 as _components
+    import plotly.graph_objects as _go
+
+    asset = get_asset_type(ticker)
     tv_theme = "dark" if C['DARK'] else "light"
     st.markdown("<div style='padding:0 1.5rem;'>", unsafe_allow_html=True)
 
-    p,chg,pct=price_info(ticker)
+    # ── Price header ──────────────────────────────────────────────────────────
+    p, chg, pct = price_info(ticker)
     info = get_info(ticker)
     name = info.get('longName', info.get('shortName', ticker))
-    exchange = info.get('exchange','')
-    currency = info.get('currency','USD')
-    sector = info.get('sector','')
+    exchange = info.get('exchange', '')
+    currency = info.get('currency', 'USD')
+    sector = info.get('sector', '')
 
     if p:
-        col_p=C['UP'] if (chg or 0)>=0 else C['DOWN']
-        sign="+" if (chg or 0)>=0 else ""
-        s5_sig = get_signals_cached(ticker,"7d","5m")[1]
-        s1d_sig = get_signals_cached(ticker,"2y","1d")[1]
+        col_p = C['UP'] if (chg or 0) >= 0 else C['DOWN']
+        sign = "+" if (chg or 0) >= 0 else ""
+        s1d_sig = get_signals_cached(ticker, "2y", "1d")[1]
         from modules.styles import signal_badge
+        badge_1d = signal_badge(s1d_sig, C)
         price_str = f"{p:,.4f}"
-        chg_str = f"{chg:.4f}"
-        pct_str = f"{pct:.2f}"
-        badges = (
-            f'<div style="text-align:center;"><div style="font-family:IBM Plex Mono,monospace;font-size:0.54rem;font-weight:600;letter-spacing:0.08em;color:{C["TXT3"]};margin-bottom:3px;">5M</div>'
-            + signal_badge(s5_sig,C) + '</div>'
-            + f'<div style="text-align:center;"><div style="font-family:IBM Plex Mono,monospace;font-size:0.54rem;font-weight:600;letter-spacing:0.08em;color:{C["TXT3"]};margin-bottom:3px;">1D</div>'
-            + signal_badge(s1d_sig,C) + '</div>'
-        )
-        sector_part = (f'&nbsp;·&nbsp;{sector}') if sector else ''
-        exch_part = (f'&nbsp;·&nbsp;{exchange}') if exchange else ''
+        chg_str = f"{abs(chg):.4f}"
+        pct_str = f"{abs(pct):.2f}"
+        sector_part = f"&nbsp;·&nbsp;{sector}" if sector else ""
+        exch_part = f"&nbsp;·&nbsp;{exchange}" if exchange else ""
+        asset_badge = f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;color:{C["TXT3"]};background:{C["BG2"]};border:1px solid {C["BOR"]};padding:2px 7px;border-radius:3px;">{asset.upper()}</span>'
         st.markdown(
-            f'<div style="padding:16px 0 14px;border-bottom:1px solid {C["BOR"]};margin-bottom:14px;">'
-            f'<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">'
+            f'<div style="padding:14px 0 12px;border-bottom:1px solid {C["BOR"]};margin-bottom:12px;">'
+            f'<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
             f'<div>'
-            f'<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">'
-            f'<span style="font-family:DM Sans,sans-serif;font-size:1.6rem;font-weight:700;color:{C["TXT1"]};letter-spacing:-0.01em;">{ticker}</span>'
-            f'<span style="font-family:IBM Plex Mono,monospace;font-size:1.4rem;font-weight:500;color:{C["TXT1"]};">{price_str}</span>'
-            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.9rem;color:{col_p};">{sign}{chg_str} ({sign}{pct_str}%)</span>'
-            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C["TXT3"]};background:{C["BG2"]};border:1px solid {C["BOR"]};padding:2px 7px;border-radius:3px;">{currency}</span>'
+            f'<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">'
+            f'<span style="font-family:DM Sans,sans-serif;font-size:1.5rem;font-weight:700;color:{C["TXT1"]};letter-spacing:-0.01em;">{ticker}</span>'
+            f'<span style="font-family:IBM Plex Mono,monospace;font-size:1.3rem;font-weight:500;color:{C["TXT1"]};">{price_str}</span>'
+            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.88rem;color:{col_p};">{sign}{chg_str} ({sign}{pct_str}%)</span>'
+            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;color:{C["TXT3"]};background:{C["BG2"]};border:1px solid {C["BOR"]};padding:2px 6px;border-radius:3px;">{currency}</span>'
+            f'{asset_badge}'
             f'</div>'
-            f'<div style="font-family:Inter,sans-serif;font-size:0.8rem;color:{C["TXT3"]};margin-top:4px;">{name}{sector_part}{exch_part}</div>'
+            f'<div style="font-family:Inter,sans-serif;font-size:0.78rem;color:{C["TXT3"]};margin-top:3px;">{name}{sector_part}{exch_part}</div>'
             f'</div>'
-            f'<div style="display:flex;gap:10px;align-items:center;">{badges}</div>'
+            f'<div style="display:flex;gap:10px;align-items:center;">'
+            f'<div style="text-align:center;"><div style="font-family:IBM Plex Mono,monospace;font-size:0.52rem;font-weight:600;letter-spacing:0.08em;color:{C["TXT3"]};margin-bottom:3px;">1D</div>{badge_1d}</div>'
+            f'</div>'
             f'</div></div>',
             unsafe_allow_html=True
         )
 
-    ws_tabs = st.tabs(["Chart", "Overview", "Financials", "Valuation", "Analyst", "Ownership", "Options", "News"])
+    # ── Asset-aware tabs ──────────────────────────────────────────────────────
+    tab_names = ASSET_TABS.get(asset, ASSET_TABS['stock'])
+    ws_tabs = st.tabs(tab_names)
+    tab_map = {name: ws_tabs[i] for i, name in enumerate(tab_names)}
 
-    # ── CHART ─────────────────────────────────────────────────────────────────
-    with ws_tabs[0]:
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        ctrl=st.columns([1,1,1,1,4])
-        tf_sel=ctrl[0].selectbox("TF",list(TV_INTERVALS.keys()),index=5,key="tf_"+ticker,label_visibility="collapsed")
-        chart_style=ctrl[1].selectbox("Style",["Candles","Bars","Line","Area","Heikin Ashi"],key="cs_"+ticker,label_visibility="collapsed")
-        show_rsi=ctrl[2].checkbox("RSI",value=True,key="rsi_"+ticker)
-        show_macd=ctrl[3].checkbox("MACD",value=False,key="mac_"+ticker)
-        STYLE_MAP={"Candles":"1","Bars":"0","Line":"2","Area":"3","Heikin Ashi":"8"}
-        tv_style=STYLE_MAP.get(chart_style,"1")
-        tv_int=TV_INTERVALS.get(tf_sel,"1D")
-        tv_sym=get_tv_symbol(ticker)
-        bg=C['BG0']
-        safe_id=ticker.replace("-","").replace("=","").replace("^","")
-        studies=["Volume@tv-basicstudies"]
-        if show_rsi: studies.append("RSI@tv-basicstudies")
+    # ── Helper: build TradingView chart ──────────────────────────────────────
+    def tv_chart_widget(tf_key, style_key, rsi_key, macd_key):
+        ctrl = st.columns([1, 1, 1, 1, 4])
+        tf_sel = ctrl[0].selectbox("TF", list(TV_INTERVALS.keys()), index=5,
+                                    key=tf_key, label_visibility="collapsed")
+        chart_style = ctrl[1].selectbox("Style",
+                                         ["Candles","Bars","Line","Area","Heikin Ashi"],
+                                         key=style_key, label_visibility="collapsed")
+        show_rsi  = ctrl[2].checkbox("RSI",  value=True,  key=rsi_key)
+        show_macd = ctrl[3].checkbox("MACD", value=False, key=macd_key)
+        STYLE_MAP = {"Candles":"1","Bars":"0","Line":"2","Area":"3","Heikin Ashi":"8"}
+        tv_style = STYLE_MAP.get(chart_style, "1")
+        tv_int   = TV_INTERVALS.get(tf_sel, "1D")
+        tv_sym   = get_tv_symbol(ticker)
+        bg       = C['BG0']
+        safe_id  = ticker.replace("-","").replace("=","").replace("^","")
+        studies  = ["Volume@tv-basicstudies"]
+        if show_rsi:  studies.append("RSI@tv-basicstudies")
         if show_macd: studies.append("MACD@tv-basicstudies")
-        sjs=", ".join(['"'+s+'"' for s in studies])
-        chart_html=(
-            '<html><head>'
-            '<style>*{margin:0;padding:0;box-sizing:border-box;}body{background:'+bg+';}'
+        sjs = ", ".join(['"'+s+'"' for s in studies])
+        html = (
+            '<html><head><style>*{margin:0;padding:0;box-sizing:border-box;}'
+            'body{background:'+bg+';}'
             '#tvchart_'+safe_id+'{height:680px;width:100%;}</style></head><body>'
             '<div id="tvchart_'+safe_id+'"></div>'
             '<script src="https://s3.tradingview.com/tv.js"></script>'
@@ -256,293 +265,481 @@ def render_symbol_page(ticker):
             'hide_side_toolbar:false,withdateranges:true,save_image:true,'
             'container_id:"tvchart_'+safe_id+'",'
             'studies:['+sjs+'],'
-            'overrides:{"paneProperties.background":"'+bg+'","paneProperties.backgroundType":"solid",'
+            'overrides:{"paneProperties.background":"'+bg+'",'
+            '"paneProperties.backgroundType":"solid",'
             '"scalesProperties.textColor":"#3d4452",'
             '"paneProperties.vertGridProperties.color":"#0d0f14",'
             '"paneProperties.horzGridProperties.color":"#0d0f14"},'
-            'studies_overrides:{"volume.volume.color.0":"rgba(232,56,74,0.4)","volume.volume.color.1":"rgba(0,201,122,0.4)"},'
+            'studies_overrides:{"volume.volume.color.0":"rgba(232,56,74,0.4)",'
+            '"volume.volume.color.1":"rgba(0,201,122,0.4)"},'
             '});</script></body></html>'
         )
-        _components.html(chart_html, height=700)
+        _components.html(html, height=700)
+        return tf_sel
 
-        TF_DATA_MAP={"1m":("1d","1m"),"5m":("7d","5m"),"15m":("30d","15m"),"30m":("60d","30m"),
-                     "1h":("60d","1h"),"2h":("120d","1h"),"4h":("180d","1h"),
-                     "1D":("2y","1d"),"1W":("5y","1wk"),"1M":("10y","1mo")}
-        per2,inv2=TF_DATA_MAP.get(tf_sel,("2y","1d"))
+    # ── Helper: signal analysis + indicator charts below TV chart ─────────────
+    def signal_and_indicators(tf_sel, ind_key_prefix):
+        TF_DATA_MAP = {
+            "1m":("1d","1m"),"5m":("7d","5m"),"15m":("30d","15m"),
+            "30m":("60d","30m"),"1h":("60d","1h"),"2h":("120d","1h"),
+            "4h":("180d","1h"),"1D":("2y","1d"),"1W":("5y","1wk"),"1M":("10y","1mo"),
+        }
+        per2, inv2 = TF_DATA_MAP.get(tf_sel, ("2y","1d"))
         with st.spinner(""):
-            df=get_data(ticker,per2,inv2)
-        if df is not None and len(df)>=20:
-            df=add_indicators(df)
-            st.markdown("<hr>", unsafe_allow_html=True)
-            sleft,sright=st.columns([3,2])
+            df = get_data(ticker, per2, inv2)
+        if df is None or len(df) < 20:
+            return
+
+        df = add_indicators(df)
+        st.markdown("<hr>", unsafe_allow_html=True)
+
+        if asset == 'stock':
+            sleft, sright = st.columns([3, 2])
             with sleft:
-                sigs,ov,tot=compute_signals(df)
-                model,scaler,acc,features=train_model(df.copy())
-                ml_sig,ml_conf=ml_predict(df,model,scaler,features)
-                buys=sum(1 for _,s,_ in sigs if s=="BUY")
-                sells=sum(1 for _,s,_ in sigs if s=="SELL")
-                c3=sig_color(ov);bg3=sig_bg(ov);bl3=sig_border(ov);ml_c=sig_color(ml_sig)
+                sigs, ov, tot = compute_signals(df)
+                model, scaler, acc, features = train_model(df.copy())
+                ml_sig, ml_conf = ml_predict(df, model, scaler, features)
+                buys  = sum(1 for _,s,_ in sigs if s=="BUY")
+                sells = sum(1 for _,s,_ in sigs if s=="SELL")
+                c3=sig_color(ov); bg3=sig_bg(ov); bl3=sig_border(ov); ml_c=sig_color(ml_sig)
                 st.markdown(
-                    f'<div style="background:{bg3};border:1px solid {bl3};border-radius:6px;padding:14px 16px;margin-bottom:10px;">'
+                    f'<div style="background:{bg3};border:1px solid {bl3};border-radius:6px;padding:12px 16px;margin-bottom:10px;">'
                     f'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">'
-                    f'<div><div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};margin-bottom:4px;">Consensus</div>'
+                    f'<div><div style="font-family:IBM Plex Mono,monospace;font-size:0.54rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};margin-bottom:3px;">Consensus</div>'
                     f'<div style="font-family:DM Sans,sans-serif;font-size:1.8rem;font-weight:700;color:{c3};line-height:1;">{ov}</div></div>'
-                    f'<div style="text-align:right;font-family:IBM Plex Mono,monospace;font-size:0.66rem;line-height:2;color:{C["TXT3"]};">'
+                    f'<div style="text-align:right;font-family:IBM Plex Mono,monospace;font-size:0.65rem;line-height:2;color:{C["TXT3"]};">'
                     f'<div><span style="color:{C["UP"]};">{buys} Buy</span> / <span style="color:{C["DOWN"]};">{sells} Sell</span></div>'
                     f'<div>Score <span style="color:{c3};font-weight:600;">{tot:+d}</span></div>'
-                    f'<div>ML <span style="color:{ml_c};font-weight:600;">{ml_sig}</span> {ml_conf:.0%} · {acc:.0%} acc</div>'
+                    f'<div>ML <span style="color:{ml_c};font-weight:600;">{ml_sig}</span> {ml_conf:.0%} · {acc:.0%}</div>'
                     f'</div></div></div>',
                     unsafe_allow_html=True
                 )
-                rows=""
-                for nm,sg,det in sigs:
-                    c4=sig_color(sg);bg4=sig_bg(sg);bl4=sig_border(sg)
-                    rows+=(f'<div style="display:flex;justify-content:space-between;align-items:center;'
-                           f'background:{bg4};border-left:2px solid {bl4};padding:6px 12px;margin:1px 0;border-radius:0 4px 4px 0;">'
-                           f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:{C["TXT2"]};">{nm}</span>'
-                           f'<span style="font-family:Inter,sans-serif;font-size:0.7rem;color:{C["TXT3"]};">{det}</span>'
-                           f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.68rem;font-weight:600;color:{c4};">{sg}</span></div>')
+                rows = ""
+                for nm, sg, det in sigs:
+                    c4=sig_color(sg); bg4=sig_bg(sg); bl4=sig_border(sg)
+                    rows += (f'<div style="display:flex;justify-content:space-between;align-items:center;'
+                             f'background:{bg4};border-left:2px solid {bl4};padding:5px 12px;margin:1px 0;border-radius:0 4px 4px 0;">'
+                             f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:{C["TXT2"]};">{nm}</span>'
+                             f'<span style="font-family:Inter,sans-serif;font-size:0.68rem;color:{C["TXT3"]};">{det}</span>'
+                             f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.66rem;font-weight:600;color:{c4};">{sg}</span></div>')
                 st.markdown(rows, unsafe_allow_html=True)
-                st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+                st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
                 st.markdown(lbl("Multi-Timeframe",C=C), unsafe_allow_html=True)
-                tf_mc=st.columns(5)
+                tfmc = st.columns(5)
                 for i2,(lb2,pr3,iv3) in enumerate([("5M","7d","5m"),("15M","30d","15m"),("1H","60d","1h"),("4H","180d","1h"),("1D","2y","1d")]):
-                    with tf_mc[i2]:
-                        _,ov2,sc2=get_signals_cached(ticker,pr3,iv3)
-                        c5=sig_color(ov2);bg5=sig_bg(ov2);bl5=sig_border(ov2)
+                    with tfmc[i2]:
+                        _,ov2,sc2 = get_signals_cached(ticker,pr3,iv3)
+                        c5=sig_color(ov2); bg5=sig_bg(ov2); bl5=sig_border(ov2)
                         st.markdown(
-                            f'<div style="background:{bg5};border:1px solid {bl5};border-radius:4px;padding:9px 5px;text-align:center;">'
-                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.54rem;font-weight:600;letter-spacing:0.08em;color:{C["TXT3"]};margin-bottom:3px;">{lb2}</div>'
+                            f'<div style="background:{bg5};border:1px solid {bl5};border-radius:4px;padding:8px 5px;text-align:center;">'
+                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.52rem;font-weight:600;letter-spacing:0.08em;color:{C["TXT3"]};margin-bottom:3px;">{lb2}</div>'
                             f'<div style="font-family:DM Sans,sans-serif;font-size:0.75rem;font-weight:700;color:{c5};">{ov2}</div>'
-                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.54rem;color:{C["TXT3"]};margin-top:2px;">{sc2:+d}</div></div>',
+                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.52rem;color:{C["TXT3"]};margin-top:1px;">{sc2:+d}</div></div>',
                             unsafe_allow_html=True
                         )
             with sright:
-                r=df.iloc[-1]
+                r = df.iloc[-1]
                 def gv(k):
                     try: return r.get(k, float('nan'))
                     except: return float('nan')
-                stats_list=[
+                stats_list = [
                     ("Open", f"{float(r['Open']):.4f}"),
-                    ("H20", f"{df['High'].squeeze().tail(20).max():.4f}"),
-                    ("L20", f"{df['Low'].squeeze().tail(20).min():.4f}"),
-                    ("Volume", f"{int(r['Volume']):,}"),
-                    ("ATR", f"{gv('atr'):.4f}"),
-                    ("HV20", f"{gv('hv20'):.2%}"),
-                    ("RSI", f"{gv('rsi'):.1f}"),
-                    ("ADX", f"{gv('adx'):.1f}"),
-                    ("CCI", f"{gv('cci'):.0f}"),
-                    ("Williams %R", f"{gv('wr'):.1f}"),
-                    ("MFI", f"{gv('mfi'):.1f}"),
+                    ("H20",  f"{df['High'].squeeze().tail(20).max():.4f}"),
+                    ("L20",  f"{df['Low'].squeeze().tail(20).min():.4f}"),
+                    ("Volume",f"{int(r['Volume']):,}"),
+                    ("ATR",  f"{gv('atr'):.4f}"),
+                    ("RSI",  f"{gv('rsi'):.1f}"),
+                    ("ADX",  f"{gv('adx'):.1f}"),
+                    ("MACD", f"{gv('macd'):.4f}"),
                     ("VWAP", f"{gv('vwap'):.4f}"),
-                    ("Z-Score", f"{gv('zscore'):.2f}"),
+                    ("Z-Score",f"{gv('zscore'):.2f}"),
+                    ("BB Width",f"{gv('bb_width'):.4f}"),
                 ]
-                rows2="".join(
+                rows2 = "".join(
                     f'<div style="display:flex;justify-content:space-between;border-bottom:1px solid {C["BOR"]};padding:4px 0;">'
-                    f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:{C["TXT3"]};">{k}</span>'
-                    f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.7rem;color:{C["TXT2"]};">{v}</span></div>'
-                    for k,v in stats_list
+                    f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;text-transform:uppercase;color:{C["TXT3"]};">{k}</span>'
+                    f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.68rem;color:{C["TXT2"]};">{v}</span></div>'
+                    for k, v in stats_list
                 )
-                st.markdown(
-                    f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;">'
-                    + lbl("Statistics",C=C) + rows2 + '</div>',
-                    unsafe_allow_html=True
-                )
-                p2=float(r['Close']); ma_html=""
+                st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;">{lbl("Statistics",C=C)}{rows2}</div>', unsafe_allow_html=True)
+                p2 = float(r['Close']); ma_html = ""
                 for lb3,k3 in [("E9","e9"),("E21","e21"),("E50","e50"),("E200","e200")]:
                     try:
-                        fv=float(r.get(k3,float('nan')))
+                        fv = float(r.get(k3, float('nan')))
                         if not np.isnan(fv):
-                            mc3=C['UP'] if p2>fv else C['DOWN']
-                            pct_m=(p2-fv)/fv*100
-                            ma_html+=(
-                                f'<div style="background:{C["BG0"]};border:1px solid {C["BOR"]};border-radius:4px;padding:8px 6px;flex:1;text-align:center;">'
-                                f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.54rem;font-weight:600;letter-spacing:0.08em;color:{C["TXT3"]};margin-bottom:2px;">{lb3}</div>'
-                                f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;font-weight:600;color:{mc3};">{fv:.2f}</div>'
-                                f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.54rem;color:{mc3};">{pct_m:+.1f}%</div></div>'
-                            )
+                            mc3 = C['UP'] if p2>fv else C['DOWN']
+                            ma_html += (f'<div style="background:{C["BG0"]};border:1px solid {C["BOR"]};border-radius:4px;padding:7px 5px;flex:1;text-align:center;">'
+                                        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.52rem;font-weight:600;color:{C["TXT3"]};margin-bottom:2px;">{lb3}</div>'
+                                        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.7rem;font-weight:600;color:{mc3};">{fv:.2f}</div>'
+                                        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.52rem;color:{mc3};">{(p2-fv)/fv*100:+.1f}%</div></div>')
                     except: pass
                 if ma_html:
                     st.markdown(f'<div style="display:flex;gap:4px;margin-top:8px;">{ma_html}</div>', unsafe_allow_html=True)
-
-            st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
-            st.markdown(lbl("Indicator Charts",C=C), unsafe_allow_html=True)
-            pin_key="pinned_"+ticker
-            if pin_key not in st.session_state: st.session_state[pin_key]=DEFAULT_CHARTS.copy()
-            ic1,ic2,ic3=st.columns([3,1,1])
-            with ic1:
-                cat_s=st.selectbox("Category",["All"]+list(CHART_CATEGORIES.keys()),key="icat_"+ticker,label_visibility="collapsed")
-                opts=ALL_CHARTS if cat_s=="All" else CHART_CATEGORIES[cat_s]
-                ch_s=st.selectbox("Indicator",opts,key="isel_"+ticker,label_visibility="collapsed")
-            if ic2.button("Add",key="iadd_"+ticker):
-                if ch_s not in st.session_state[pin_key]: st.session_state[pin_key].append(ch_s); st.rerun()
-            if ic3.button("Reset",key="irst_"+ticker):
-                st.session_state[pin_key]=DEFAULT_CHARTS.copy(); st.rerun()
-            if st.session_state[pin_key]:
-                chips='<div style="display:flex;flex-wrap:wrap;gap:5px;padding:5px 0 10px;">'
-                for cn in st.session_state[pin_key]:
-                    chips+=f'<span style="background:{C["BG2"]};border:1px solid {C["BOR2"]};border-radius:3px;padding:3px 9px;font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:500;color:{C["TXT2"]};">{cn}</span>'
-                chips+='</div>'
-                st.markdown(chips, unsafe_allow_html=True)
-            pinned=st.session_state[pin_key]
-            CFG_IND={'displayModeBar':False,'scrollZoom':True,'displaylogo':False,'doubleClick':'reset'}
-            if pinned:
-                first3=pinned[:3]; extra=pinned[3:]
-                if len(first3)==3: ind_cols=st.columns(3)
-                elif len(first3)==2: ind_cols=list(st.columns(2))+[None]
-                else: ind_cols=[st.columns(1)[0],None,None]
-                for i3,ch_n in enumerate(first3):
-                    if ind_cols[i3]:
-                        with ind_cols[i3]:
-                            fig_i=make_indicator_chart(df,ch_n,C,height=230)
-                            if fig_i: st.plotly_chart(fig_i,use_container_width=True,config=CFG_IND)
-                            if st.button("Remove",key=f"rmi_{ticker}_{i3}"): st.session_state[pin_key].remove(ch_n); st.rerun()
-                for j3,ch_n in enumerate(extra):
-                    ec1,ec2=st.columns([5,1])
-                    with ec1:
-                        fig_i=make_indicator_chart(df,ch_n,C,height=240)
-                        if fig_i: st.plotly_chart(fig_i,use_container_width=True,config=CFG_IND)
-                    with ec2:
-                        st.markdown("<div style='height:80px'></div>", unsafe_allow_html=True)
-                        if st.button("Remove",key=f"rmie_{ticker}_{j3}"): st.session_state[pin_key].remove(ch_n); st.rerun()
-
-    # ── OVERVIEW ──────────────────────────────────────────────────────────────
-    with ws_tabs[1]:
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        if not info:
-            st.info("Company information not available.")
         else:
-            o1,o2=st.columns([2,1])
-            with o1:
-                desc=info.get('longBusinessSummary','')
-                if desc:
-                    st.markdown(
-                        f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:16px;margin-bottom:14px;">'
-                        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};margin-bottom:8px;">About</div>'
-                        f'<div style="font-family:Inter,sans-serif;font-size:0.82rem;color:{C["TXT2"]};line-height:1.6;">{desc[:600]}{"..." if len(desc)>600 else ""}</div></div>',
-                        unsafe_allow_html=True
-                    )
-                render_key_stats(info,C)
-            with o2:
-                render_analyst_data(ticker,info,C)
-                st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-                st.markdown(lbl("News",C=C), unsafe_allow_html=True)
-                from modules.news import fetch_live_news as _fln
-                for nn in _fln(ticker,6):
-                    st.markdown(
-                        f'<a href="{nn["link"]}" target="_blank" style="text-decoration:none;display:block;">'
-                        f'<div style="border-bottom:1px solid {C["BOR"]};padding:8px 0;">'
-                        f'<div style="font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;color:{C["TXT2"]};line-height:1.4;margin-bottom:2px;">{nn["title"]}</div>'
-                        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;color:{C["TXT3"]};">{nn["source"]} · {nn["time"]}</div>'
-                        f'</div></a>',
-                        unsafe_allow_html=True
-                    )
+            # Simpler signal display for non-stocks
+            sigs, ov, tot = compute_signals(df)
+            c3=sig_color(ov); bg3=sig_bg(ov); bl3=sig_border(ov)
+            st.markdown(
+                f'<div style="background:{bg3};border:1px solid {bl3};border-radius:6px;padding:12px 16px;margin-bottom:10px;display:inline-flex;align-items:center;gap:14px;">'
+                f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};">Signal</div>'
+                f'<div style="font-family:DM Sans,sans-serif;font-size:1.4rem;font-weight:700;color:{c3};">{ov}</div>'
+                f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.68rem;color:{C["TXT3"]};">Score {tot:+d}</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
-    # ── FINANCIALS ────────────────────────────────────────────────────────────
-    with ws_tabs[2]:
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        fin=get_financials(ticker)
-        if not fin:
-            st.info("Financial data not available.")
-        else:
-            fp=st.radio("Period",["Annual","Quarterly"],horizontal=True,key="fp_"+ticker,label_visibility="collapsed")
-            ftabs=st.tabs(["Income Statement","Balance Sheet","Cash Flow"])
-            with ftabs[0]: render_income_statement(fin,C,fp)
-            with ftabs[1]: render_balance_sheet(fin,C,fp)
-            with ftabs[2]: render_cashflow(fin,C,fp)
-
-    # ── VALUATION ─────────────────────────────────────────────────────────────
-    with ws_tabs[3]:
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        vtabs=st.tabs(["DCF Model","Comparable Companies","Key Multiples"])
-        with vtabs[0]: render_dcf_model(info,C)
-        with vtabs[1]: render_comps(ticker,info,C)
-        with vtabs[2]: render_key_stats(info,C)
-
-    # ── ANALYST ───────────────────────────────────────────────────────────────
-    with ws_tabs[4]:
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        render_analyst_data(ticker,info,C)
+        # ── Indicator charts — asset-appropriate defaults ──────────────────
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        try:
-            fin4=get_financials(ticker); recs=fin4.get('recommendations')
-            if recs is not None and not recs.empty:
-                st.markdown(lbl("Recommendation History",C=C), unsafe_allow_html=True)
-                st.dataframe(recs.head(20),use_container_width=True)
-        except: pass
+        st.markdown(lbl("Indicator Charts", C=C), unsafe_allow_html=True)
+        pin_key = f"pinned_{ticker}"
+        default_charts = ASSET_INDICATORS.get(asset, ASSET_INDICATORS['stock'])
+        if pin_key not in st.session_state:
+            st.session_state[pin_key] = default_charts[:3]
 
-    # ── OWNERSHIP ─────────────────────────────────────────────────────────────
-    with ws_tabs[5]:
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        fin5=get_financials(ticker)
-        render_ownership(fin5,C)
+        ic1, ic2, ic3 = st.columns([3,1,1])
+        with ic1:
+            cat_s = st.selectbox("Category", ["All"]+list(CHART_CATEGORIES.keys()),
+                                  key=f"icat_{ticker}", label_visibility="collapsed")
+            opts = ALL_CHARTS if cat_s=="All" else CHART_CATEGORIES[cat_s]
+            ch_s = st.selectbox("Indicator", opts, key=f"isel_{ticker}", label_visibility="collapsed")
+        if ic2.button("Add", key=f"iadd_{ticker}"):
+            if ch_s not in st.session_state[pin_key]:
+                st.session_state[pin_key].append(ch_s); st.rerun()
+        if ic3.button("Reset", key=f"irst_{ticker}"):
+            st.session_state[pin_key] = default_charts[:3]; st.rerun()
 
-    # ── OPTIONS ───────────────────────────────────────────────────────────────
-    with ws_tabs[6]:
+        if st.session_state[pin_key]:
+            chips = '<div style="display:flex;flex-wrap:wrap;gap:5px;padding:5px 0 10px;">'
+            for cn in st.session_state[pin_key]:
+                chips += f'<span style="background:{C["BG2"]};border:1px solid {C["BOR2"]};border-radius:3px;padding:3px 9px;font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:500;color:{C["TXT2"]};">{cn}</span>'
+            chips += '</div>'
+            st.markdown(chips, unsafe_allow_html=True)
+
+        pinned = st.session_state[pin_key]
+        CFG_IND = {'displayModeBar':False,'scrollZoom':True,'displaylogo':False,'doubleClick':'reset'}
+        if pinned:
+            first3 = pinned[:3]; extra = pinned[3:]
+            if len(first3)==3: ind_cols = st.columns(3)
+            elif len(first3)==2: ind_cols = list(st.columns(2))+[None]
+            else: ind_cols = [st.columns(1)[0],None,None]
+            for i3, ch_n in enumerate(first3):
+                if ind_cols[i3]:
+                    with ind_cols[i3]:
+                        fig_i = make_indicator_chart(df, ch_n, C, height=230)
+                        if fig_i: st.plotly_chart(fig_i, use_container_width=True, config=CFG_IND)
+                        if st.button("Remove", key=f"rmi_{ticker}_{i3}"):
+                            st.session_state[pin_key].remove(ch_n); st.rerun()
+            for j3, ch_n in enumerate(extra):
+                ec1, ec2 = st.columns([5,1])
+                with ec1:
+                    fig_i = make_indicator_chart(df, ch_n, C, height=240)
+                    if fig_i: st.plotly_chart(fig_i, use_container_width=True, config=CFG_IND)
+                with ec2:
+                    st.markdown("<div style='height:80px'></div>", unsafe_allow_html=True)
+                    if st.button("Remove", key=f"rmie_{ticker}_{j3}"):
+                        st.session_state[pin_key].remove(ch_n); st.rerun()
+
+    # ── CHART TAB ─────────────────────────────────────────────────────────────
+    with tab_map["Chart"]:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        try:
-            tk_opt=yf.Ticker(ticker); exps=tk_opt.options
-            if not exps:
-                st.info("No options data available.")
+        tf_sel = tv_chart_widget(f"tf_{ticker}", f"cs_{ticker}", f"rsi_{ticker}", f"mac_{ticker}")
+        signal_and_indicators(tf_sel, ticker)
+
+    # ── OVERVIEW / MARKET DATA TAB ────────────────────────────────────────────
+    if "Overview" in tab_map:
+        with tab_map["Overview"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            if not info:
+                st.info("Company information not available.")
             else:
-                exp_sel=st.selectbox("Expiration",exps[:15],key="opt_exp_"+ticker,label_visibility="collapsed")
-                chain=tk_opt.option_chain(exp_sel); calls,puts=chain.calls,chain.puts
-                cv=calls['volume'].sum(); pv=puts['volume'].sum(); pcr=pv/cv if cv>0 else 0
-                om1,om2,om3,om4,om5,om6=st.columns(6)
-                om1.metric("Call Vol",f"{cv:,.0f}"); om2.metric("Put Vol",f"{pv:,.0f}")
-                om3.metric("P/C Ratio",f"{pcr:.2f}","Bearish" if pcr>1 else "Bullish")
-                om4.metric("Call OI",f"{calls['openInterest'].sum():,.0f}")
-                om5.metric("Put OI",f"{puts['openInterest'].sum():,.0f}")
-                om6.metric("Avg IV",f"{calls['impliedVolatility'].mean()*100:.1f}%")
-                s_flow="BEARISH" if pcr>1.3 else "BULLISH" if pcr<0.7 else "NEUTRAL"
-                sf_c=C['DOWN'] if s_flow=="BEARISH" else C['UP'] if s_flow=="BULLISH" else C['TXT2']
+                o1, o2 = st.columns([2,1])
+                with o1:
+                    desc = info.get('longBusinessSummary','')
+                    if desc:
+                        st.markdown(
+                            f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:16px;margin-bottom:14px;">'
+                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};margin-bottom:8px;">About</div>'
+                            f'<div style="font-family:Inter,sans-serif;font-size:0.82rem;color:{C["TXT2"]};line-height:1.6;">{desc[:600]}{"..." if len(desc)>600 else ""}</div></div>',
+                            unsafe_allow_html=True
+                        )
+                    render_key_stats(info, C)
+                with o2:
+                    render_analyst_data(ticker, info, C)
+                    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+                    st.markdown(lbl("News",C=C), unsafe_allow_html=True)
+                    from modules.news import fetch_live_news as _fln
+                    for nn in _fln(ticker, 6):
+                        st.markdown(
+                            f'<a href="{nn["link"]}" target="_blank" style="text-decoration:none;display:block;">'
+                            f'<div style="border-bottom:1px solid {C["BOR"]};padding:8px 0;">'
+                            f'<div style="font-family:Inter,sans-serif;font-size:0.78rem;font-weight:500;color:{C["TXT2"]};line-height:1.4;margin-bottom:2px;">{nn["title"]}</div>'
+                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;color:{C["TXT3"]};">{nn["source"]} · {nn["time"]}</div>'
+                            f'</div></a>',
+                            unsafe_allow_html=True
+                        )
+
+    if "Market Data" in tab_map:
+        with tab_map["Market Data"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            render_market_data(ticker, info, C)
+            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+            st.markdown(lbl("News",C=C), unsafe_allow_html=True)
+            from modules.news import fetch_live_news as _fln2
+            for nn in _fln2(ticker, 8):
                 st.markdown(
-                    f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:12px 16px;margin:12px 0;display:flex;align-items:center;gap:14px;">'
-                    f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};">Options Flow</span>'
-                    f'<span style="font-family:DM Sans,sans-serif;font-size:1.2rem;font-weight:700;color:{sf_c};">{s_flow}</span>'
-                    f'<span style="font-family:Inter,sans-serif;font-size:0.8rem;color:{C["TXT2"]};"> P/C {pcr:.2f}</span></div>',
+                    f'<a href="{nn["link"]}" target="_blank" style="text-decoration:none;display:block;">'
+                    f'<div style="border-bottom:1px solid {C["BOR"]};padding:8px 0;">'
+                    f'<div style="font-family:Inter,sans-serif;font-size:0.8rem;font-weight:500;color:{C["TXT2"]};line-height:1.4;margin-bottom:2px;">{nn["title"]}</div>'
+                    f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;color:{C["TXT3"]};">{nn["source"]} · {nn["time"]}</div>'
+                    f'</div></a>',
                     unsafe_allow_html=True
                 )
-                oc1,oc2=st.columns(2)
-                for co,da,tt in [(oc1,calls,"Top Calls"),(oc2,puts,"Top Puts")]:
-                    with co:
-                        st.markdown(lbl(tt,C=C), unsafe_allow_html=True)
-                        td_o=da[['strike','lastPrice','bid','ask','volume','openInterest','impliedVolatility']].copy()
-                        td_o.columns=['Strike','Last','Bid','Ask','Vol','OI','IV']
-                        td_o['IV']=(td_o['IV']*100).round(1).astype(str)+'%'
-                        st.dataframe(td_o.sort_values('Vol',ascending=False).head(12),use_container_width=True,hide_index=True)
-                import plotly.graph_objects as _go2
-                fig_iv2=_go2.Figure()
-                fig_iv2.add_trace(_go2.Scatter(x=calls['strike'],y=calls['impliedVolatility']*100,mode='lines',name='Calls',line=dict(color=C['UP'],width=1.4)))
-                fig_iv2.add_trace(_go2.Scatter(x=puts['strike'],y=puts['impliedVolatility']*100,mode='lines',name='Puts',line=dict(color=C['DOWN'],width=1.4)))
-                fig_iv2.update_layout(**base_layout(C,260,"IV Skew"))
-                st.plotly_chart(fig_iv2,use_container_width=True,config=CFG0)
-        except Exception as e:
-            st.error(f"Options error: {e}")
 
-    # ── NEWS ──────────────────────────────────────────────────────────────────
-    with ws_tabs[7]:
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        from modules.news import fetch_live_news as _fln2, get_source_color as _gsc
-        with st.spinner("Loading..."):
-            sym_news=_fln2(ticker,20)
-        if not sym_news:
-            st.info("No news found.")
-        else:
-            nc1,nc2=st.columns(2)
-            for ni,nn in enumerate(sym_news):
-                sc_col=_gsc(nn['source'])
-                with nc1 if ni%2==0 else nc2:
+    # ── FINANCIALS TAB (stocks only) ──────────────────────────────────────────
+    if "Financials" in tab_map:
+        with tab_map["Financials"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            fin = get_financials(ticker)
+            if not fin:
+                st.info("Financial data not available.")
+            else:
+                fp = st.radio("Period", ["Annual","Quarterly"], horizontal=True,
+                               key=f"fp_{ticker}", label_visibility="collapsed")
+                ftabs = st.tabs(["Income Statement","Balance Sheet","Cash Flow"])
+                with ftabs[0]: render_income_statement(fin, C, fp)
+                with ftabs[1]: render_balance_sheet(fin, C, fp)
+                with ftabs[2]: render_cashflow(fin, C, fp)
+
+    # ── VALUATION TAB (stocks only) ───────────────────────────────────────────
+    if "Valuation" in tab_map:
+        with tab_map["Valuation"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            vtabs = st.tabs(["DCF Model","Comparable Companies","Key Multiples"])
+            with vtabs[0]: render_dcf_model(info, C)
+            with vtabs[1]: render_comps(ticker, info, C)
+            with vtabs[2]: render_key_stats(info, C)
+
+    # ── ANALYST TAB ───────────────────────────────────────────────────────────
+    if "Analyst" in tab_map:
+        with tab_map["Analyst"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            render_analyst_data(ticker, info, C)
+            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+            try:
+                fin4 = get_financials(ticker)
+                recs = fin4.get('recommendations')
+                if recs is not None and not recs.empty:
+                    st.markdown(lbl("Recommendation History",C=C), unsafe_allow_html=True)
+                    st.dataframe(recs.head(20), use_container_width=True)
+            except: pass
+
+    # ── OWNERSHIP TAB ─────────────────────────────────────────────────────────
+    if "Ownership" in tab_map:
+        with tab_map["Ownership"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            fin5 = get_financials(ticker)
+            render_ownership(fin5, C)
+
+    # ── HOLDINGS TAB (ETFs) ───────────────────────────────────────────────────
+    if "Holdings" in tab_map:
+        with tab_map["Holdings"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            try:
+                tk_h = yf.Ticker(ticker)
+                holdings = tk_h.funds_data
+                if holdings and hasattr(holdings, 'top_holdings'):
+                    th = holdings.top_holdings
+                    if th is not None and not th.empty:
+                        st.markdown(lbl("Top Holdings",C=C), unsafe_allow_html=True)
+                        st.dataframe(th, use_container_width=True)
+                    else:
+                        raise ValueError("no holdings")
+                else:
+                    raise ValueError("no funds data")
+            except:
+                render_key_stats(info, C)
+
+    # ── OPTIONS TAB ───────────────────────────────────────────────────────────
+    if "Options" in tab_map:
+        with tab_map["Options"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            try:
+                tk_opt = yf.Ticker(ticker)
+                exps = tk_opt.options
+                if not exps:
+                    st.info("No options data available for this symbol.")
+                else:
+                    # Controls row
+                    oc1, oc2, oc3 = st.columns([2,1,1])
+                    with oc1:
+                        exp_sel = st.selectbox("Expiration", exps[:20],
+                                                key=f"opt_exp_{ticker}", label_visibility="collapsed")
+                    with oc2:
+                        opt_type = st.radio("Chain", ["Both","Calls","Puts"], horizontal=True,
+                                             key=f"opt_type_{ticker}", label_visibility="collapsed")
+
+                    chain = tk_opt.option_chain(exp_sel)
+                    calls, puts = chain.calls, chain.puts
+                    cv = calls['volume'].sum(); pv = puts['volume'].sum()
+                    pcr = pv/cv if cv>0 else 0
+                    oi_c = calls['openInterest'].sum()
+                    oi_p = puts['openInterest'].sum()
+                    avg_iv_c = calls['impliedVolatility'].mean()*100
+                    avg_iv_p = puts['impliedVolatility'].mean()*100
+
+                    # Metrics
+                    m1,m2,m3,m4,m5,m6 = st.columns(6)
+                    m1.metric("Call Vol", f"{cv:,.0f}")
+                    m2.metric("Put Vol",  f"{pv:,.0f}")
+                    m3.metric("P/C Ratio", f"{pcr:.2f}", "Bearish" if pcr>1 else "Bullish")
+                    m4.metric("Call OI",  f"{oi_c:,.0f}")
+                    m5.metric("Put OI",   f"{oi_p:,.0f}")
+                    m6.metric("Avg IV",   f"{avg_iv_c:.1f}%")
+
+                    # Flow signal
+                    s_flow = "BEARISH" if pcr>1.3 else "BULLISH" if pcr<0.7 else "NEUTRAL"
+                    sf_c = C['DOWN'] if s_flow=="BEARISH" else C['UP'] if s_flow=="BULLISH" else C['TXT2']
                     st.markdown(
-                        f'<a href="{nn["link"]}" target="_blank" style="text-decoration:none;display:block;">'
-                        f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-top:2px solid {sc_col};border-radius:6px;padding:12px;margin-bottom:8px;">'
-                        f'<div style="font-family:Inter,sans-serif;font-size:0.83rem;font-weight:500;color:{C["TXT1"]};line-height:1.45;margin-bottom:7px;">{nn["title"]}</div>'
-                        f'<div style="display:flex;justify-content:space-between;">'
-                        f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;color:{sc_col};letter-spacing:0.06em;">{nn["source"].upper()}</span>'
-                        f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;color:{C["TXT3"]};">{nn["time"]}</span>'
-                        f'</div></div></a>',
+                        f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;'
+                        f'padding:10px 16px;margin:10px 0;display:flex;align-items:center;gap:14px;">'
+                        f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;'
+                        f'letter-spacing:0.1em;text-transform:uppercase;color:{C["TXT3"]};">Options Flow</span>'
+                        f'<span style="font-family:DM Sans,sans-serif;font-size:1.1rem;font-weight:700;color:{sf_c};">{s_flow}</span>'
+                        f'<span style="font-family:Inter,sans-serif;font-size:0.78rem;color:{C["TXT2"]};">'
+                        f'{"Heavy put buying" if pcr>1.3 else "Heavy call buying" if pcr<0.7 else "Balanced flow"} · P/C = {pcr:.2f}</span>'
+                        f'</div>',
                         unsafe_allow_html=True
                     )
+
+                    # ── Options TradingView chart ──────────────────────────────
+                    st.markdown(lbl("Price Chart", C=C), unsafe_allow_html=True)
+                    opt_tv_sym = get_tv_symbol(ticker)
+                    opt_bg = C['BG0']
+                    opt_safe = ticker.replace("-","").replace("=","").replace("^","")
+                    opt_chart_html = (
+                        '<html><head><style>*{margin:0;padding:0;}'
+                        'body{background:'+opt_bg+';}'
+                        '#opt_tv_'+opt_safe+'{height:400px;width:100%;}</style></head><body>'
+                        '<div id="opt_tv_'+opt_safe+'"></div>'
+                        '<script src="https://s3.tradingview.com/tv.js"></script>'
+                        '<script>new TradingView.widget({'
+                        'autosize:true,symbol:"'+opt_tv_sym+'",interval:"1D",'
+                        'timezone:"Etc/UTC",theme:"'+tv_theme+'",style:"1",locale:"en",'
+                        'toolbar_bg:"'+opt_bg+'",enable_publishing:false,allow_symbol_change:false,'
+                        'hide_side_toolbar:true,withdateranges:false,'
+                        'container_id:"opt_tv_'+opt_safe+'",'
+                        'studies:["RSI@tv-basicstudies","Volume@tv-basicstudies"],'
+                        'overrides:{"paneProperties.background":"'+opt_bg+'",'
+                        '"paneProperties.backgroundType":"solid",'
+                        '"scalesProperties.textColor":"#3d4452",'
+                        '"paneProperties.vertGridProperties.color":"#0d0f14",'
+                        '"paneProperties.horzGridProperties.color":"#0d0f14"},'
+                        '});</script></body></html>'
+                    )
+                    _components.html(opt_chart_html, height=410)
+
+                    # ── IV Skew chart ──────────────────────────────────────────
+                    st.markdown(lbl("IV Skew", C=C), unsafe_allow_html=True)
+                    fig_iv = _go.Figure()
+                    if opt_type in ("Both","Calls"):
+                        fig_iv.add_trace(_go.Scatter(
+                            x=calls['strike'], y=calls['impliedVolatility']*100,
+                            mode='lines', name='Calls IV',
+                            line=dict(color=C['UP'], width=1.6)
+                        ))
+                    if opt_type in ("Both","Puts"):
+                        fig_iv.add_trace(_go.Scatter(
+                            x=puts['strike'], y=puts['impliedVolatility']*100,
+                            mode='lines', name='Puts IV',
+                            line=dict(color=C['DOWN'], width=1.6)
+                        ))
+                    fig_iv.update_layout(**base_layout(C, 260, "Implied Volatility by Strike"))
+                    st.plotly_chart(fig_iv, use_container_width=True,
+                                    config={'displayModeBar':False,'scrollZoom':True})
+
+                    # ── Volume by Strike chart ─────────────────────────────────
+                    st.markdown(lbl("Volume by Strike", C=C), unsafe_allow_html=True)
+                    fig_vol = _go.Figure()
+                    if opt_type in ("Both","Calls"):
+                        fig_vol.add_trace(_go.Bar(
+                            x=calls['strike'], y=calls['volume'],
+                            name='Call Vol', marker_color=C['UP'], opacity=0.7
+                        ))
+                    if opt_type in ("Both","Puts"):
+                        fig_vol.add_trace(_go.Bar(
+                            x=puts['strike'], y=puts['volume'],
+                            name='Put Vol', marker_color=C['DOWN'], opacity=0.7
+                        ))
+                    fig_vol.update_layout(**base_layout(C, 240, "Options Volume by Strike"))
+                    st.plotly_chart(fig_vol, use_container_width=True,
+                                    config={'displayModeBar':False,'scrollZoom':True})
+
+                    # ── Open Interest chart ────────────────────────────────────
+                    st.markdown(lbl("Open Interest by Strike", C=C), unsafe_allow_html=True)
+                    fig_oi = _go.Figure()
+                    if opt_type in ("Both","Calls"):
+                        fig_oi.add_trace(_go.Bar(
+                            x=calls['strike'], y=calls['openInterest'],
+                            name='Call OI', marker_color=C['UP'], opacity=0.6
+                        ))
+                    if opt_type in ("Both","Puts"):
+                        fig_oi.add_trace(_go.Bar(
+                            x=puts['strike'], y=puts['openInterest'],
+                            name='Put OI', marker_color=C['DOWN'], opacity=0.6
+                        ))
+                    fig_oi.update_layout(**base_layout(C, 240, "Open Interest by Strike"))
+                    st.plotly_chart(fig_oi, use_container_width=True,
+                                    config={'displayModeBar':False,'scrollZoom':True})
+
+                    # ── Chain table ────────────────────────────────────────────
+                    st.markdown(lbl("Options Chain", C=C), unsafe_allow_html=True)
+                    chain_tabs = st.tabs(["Calls","Puts"])
+                    cols_show = ['strike','lastPrice','bid','ask','volume','openInterest','impliedVolatility','delta','gamma'] \
+                                if 'delta' in calls.columns else ['strike','lastPrice','bid','ask','volume','openInterest','impliedVolatility']
+                    with chain_tabs[0]:
+                        td = calls[cols_show].copy()
+                        td.columns = [c.title() for c in td.columns]
+                        if 'Impliedvolatility' in td.columns:
+                            td.rename(columns={'Impliedvolatility':'IV'}, inplace=True)
+                            td['IV'] = (td['IV']*100).round(1).astype(str)+'%'
+                        st.dataframe(td.sort_values('Strike'), use_container_width=True, hide_index=True)
+                    with chain_tabs[1]:
+                        td2 = puts[cols_show].copy()
+                        td2.columns = [c.title() for c in td2.columns]
+                        if 'Impliedvolatility' in td2.columns:
+                            td2.rename(columns={'Impliedvolatility':'IV'}, inplace=True)
+                            td2['IV'] = (td2['IV']*100).round(1).astype(str)+'%'
+                        st.dataframe(td2.sort_values('Strike'), use_container_width=True, hide_index=True)
+
+            except Exception as e:
+                st.error(f"Options error: {e}")
+
+    # ── NEWS TAB ──────────────────────────────────────────────────────────────
+    if "News" in tab_map:
+        with tab_map["News"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            from modules.news import fetch_live_news as _fln3, get_source_color as _gsc
+            with st.spinner("Loading..."):
+                sym_news = _fln3(ticker, 24)
+            if not sym_news:
+                st.info("No news found.")
+            else:
+                nc1, nc2 = st.columns(2)
+                for ni, nn in enumerate(sym_news):
+                    sc_col = _gsc(nn['source'])
+                    with nc1 if ni%2==0 else nc2:
+                        st.markdown(
+                            f'<a href="{nn["link"]}" target="_blank" style="text-decoration:none;display:block;">'
+                            f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-top:2px solid {sc_col};'
+                            f'border-radius:6px;padding:12px;margin-bottom:8px;">'
+                            f'<div style="font-family:Inter,sans-serif;font-size:0.83rem;font-weight:500;color:{C["TXT1"]};'
+                            f'line-height:1.45;margin-bottom:7px;">{nn["title"]}</div>'
+                            f'<div style="display:flex;justify-content:space-between;">'
+                            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;color:{sc_col};letter-spacing:0.06em;">{nn["source"].upper()}</span>'
+                            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;color:{C["TXT3"]};">{nn["time"]}</span>'
+                            f'</div></div></a>',
+                            unsafe_allow_html=True
+                        )
 
     st.markdown("</div>", unsafe_allow_html=True)
 
