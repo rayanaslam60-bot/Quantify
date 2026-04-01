@@ -237,47 +237,15 @@ hr{{border:none;border-top:1px solid {C['BOR']};margin:16px 0;}}
 .stProgress>div>div{{background:{C['BLUE']};}}
 .stSpinner>div{{border-color:{C['BLUE']} transparent transparent transparent;}}
 
-/* ── MOBILE ── */
+/* ── MOBILE — tabs only, sidebar handled by Streamlit ── */
 @media (max-width:768px) {{
-    /* Sidebar slides in from left */
-    section[data-testid="stSidebar"] {{
-        transform:translateX(-100%);
-        transition:transform 0.25s ease;
-        position:fixed!important;
-        top:0!important;left:0!important;
-        height:100vh!important;
-        width:85vw!important;
-        min-width:260px!important;
-        max-width:320px!important;
-        z-index:1000!important;
-        box-shadow:4px 0 32px rgba(0,0,0,0.6)!important;
-    }}
-    section[data-testid="stSidebar"][aria-expanded="true"] {{
-        transform:translateX(0)!important;
-    }}
-    /* Make main content full width */
-    .main .block-container {{
-        padding:0 10px!important;
-    }}
-    /* Stack metric columns */
-    [data-testid="column"] {{
-        min-width:45%!important;
-    }}
-    /* Scrollable tabs */
+    .main .block-container {{padding:0 8px!important;}}
     .stTabs [data-baseweb="tab-list"] {{
-        overflow-x:auto!important;
-        flex-wrap:nowrap!important;
-        padding:0 6px!important;
-        -webkit-overflow-scrolling:touch!important;
+        overflow-x:auto!important;flex-wrap:nowrap!important;
+        padding:0 6px!important;-webkit-overflow-scrolling:touch!important;
     }}
     .stTabs [data-baseweb="tab"] {{
-        white-space:nowrap!important;
-        padding:10px 10px!important;
-        font-size:0.6rem!important;
-    }}
-    /* Smaller header text */
-    div[data-testid="stMetricValue"] {{
-        font-size:0.85rem!important;
+        white-space:nowrap!important;padding:10px 10px!important;font-size:0.6rem!important;
     }}
 }}
 hr{{border:none;border-top:1px solid {C['BOR']};margin:16px 0;}}

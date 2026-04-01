@@ -1056,41 +1056,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Mobile hamburger button + overlay
-st.markdown(f"""
-<button onclick="
-    var sb=window.parent.document.querySelector('[data-testid=stSidebar]');
-    var ov=document.getElementById('mob-overlay');
-    if(sb){{
-        var isOpen = sb.getAttribute('aria-expanded')==='true';
-        sb.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
-        if(ov) ov.style.display = isOpen ? 'none' : 'block';
-    }}
-" style="
-    display:none;
-    position:fixed;top:12px;left:12px;z-index:1001;
-    background:{C['BG2']};border:1px solid {C['BOR']};
-    border-radius:6px;padding:8px 10px;cursor:pointer;
-    font-family:IBM Plex Mono,monospace;font-size:0.8rem;
-    color:{C['TXT2']};line-height:1;
-    @media(max-width:768px){{display:flex!important;}}
-" id="mob-hamburger">&#9776;</button>
-
-<div id="mob-overlay" onclick="
-    var sb=window.parent.document.querySelector('[data-testid=stSidebar]');
-    if(sb) sb.setAttribute('aria-expanded','false');
-    this.style.display='none';
-" style="
-    display:none;position:fixed;inset:0;
-    background:rgba(0,0,0,0.5);z-index:999;
-"></div>
-
-<style>
-@media(max-width:768px){{
-    #mob-hamburger{{display:flex!important;}}
-}}
-</style>
-""", unsafe_allow_html=True)
 
 if page=="symbol" and st.session_state.active_symbol:
     render_symbol_page(st.session_state.active_symbol)
