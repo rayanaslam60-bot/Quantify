@@ -20,12 +20,14 @@ def get_asset_type(ticker):
     return 'stock'
 
 ASSET_TABS = {
-    'stock':   ["Chart", "Overview", "Financials", "Valuation", "Analyst", "Ownership", "Options", "News"],
-    'etf':     ["Chart", "Overview", "Holdings", "Options", "News"],
-    'crypto':  ["Chart", "Market Data", "News"],
-    'futures': ["Chart", "Market Data", "News"],
-    'forex':   ["Chart", "Market Data", "News"],
-    'index':   ["Chart", "Market Data", "News"],
+    'stock':   ["Chart", "Overview", "Price Action", "Financials", "Fundamentals",
+                "Valuation", "Estimates", "Analyst", "Ownership", "Insider",
+                "Corporate Actions", "Options", "Risk", "News", "Events"],
+    'etf':     ["Chart", "Overview", "Price Action", "Holdings", "Options", "Risk", "News"],
+    'crypto':  ["Chart", "Market Data", "Price Action", "Risk", "News"],
+    'futures': ["Chart", "Market Data", "Price Action", "Risk", "News"],
+    'forex':   ["Chart", "Market Data", "Price Action", "Risk", "News"],
+    'index':   ["Chart", "Market Data", "Price Action", "Risk", "News"],
 }
 
 ASSET_INDICATORS = {

@@ -19,7 +19,14 @@ from modules.signals     import get_signals_cached, compute_signals, train_model
 from modules.charts      import base_layout, mini_chart, CFG, CFG0
 from modules.moneyman    import call_mm, QUICK_ASKS
 from modules.backtest    import STRATEGY_CATEGORIES, STRATEGY_DESC, run_backtest
-from modules.tradingview import get_tv_symbol, TV_INTERVALS
+from modules.tradingview  import get_tv_symbol, TV_INTERVALS
+from modules.market_data  import (MARKET_GROUPS, get_market_snapshot, run_screener,
+                                   SCREENER_UNIVERSE, get_earnings_calendar,
+                                   get_macro_indicators, get_yield_curve,
+                                   get_corporate_actions, get_insider_data,
+                                   get_estimates, get_sec_filings_url,
+                                   calculate_risk_metrics, MACRO_EVENTS,
+                                   get_market_snapshot)
 from modules.financials  import (get_financials, get_info, get_asset_type,
                                   ASSET_TABS, ASSET_INDICATORS,
                                   render_key_stats, render_market_data,
@@ -107,9 +114,17 @@ def render_tv_mini(ticker, theme="dark"):
     }});</script></body></html>"""
     components.html(html, height=210)
 
-PAGES=[("Dashboard","Dashboard"),("Equities","Equities"),("Crypto","Crypto"),
-       ("Commodities","Commodities"),("Futures","Futures"),("Options","Options"),
-       ("News","News"),("Backtest","Backtest"),("MoneyMan","MoneyMan"),("Portfolio","Portfolio")]
+PAGES=[
+    ("Dashboard","Dashboard"),("Markets","Markets"),
+    ("Equities","Equities"),("Crypto","Crypto"),
+    ("Commodities","Commodities"),("Futures","Futures"),
+    ("FX","FX"),("Options","Options"),
+    ("Macro","Macro"),("Screener","Screener"),
+    ("News","News"),("Calendar","Calendar"),
+    ("Backtest","Backtest"),("MoneyMan","MoneyMan"),
+    ("Portfolio","Portfolio"),("Watchlists","Watchlists"),
+    ("Alerts","Alerts"),("Settings","Settings"),
+]
 
 with st.sidebar:
     st.markdown(
@@ -741,6 +756,279 @@ def render_symbol_page(ticker):
                             f'</div></div></a>',
                             unsafe_allow_html=True
                         )
+
+    # ── PRICE ACTION TAB ──────────────────────────────────────────────────────
+    if "Price Action" in tab_map:
+        with tab_map["Price Action"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            pa_tabs = st.tabs(["Quote","Historical","Intraday"])
+            with pa_tabs[0]:
+                fi_data = {}
+                try:
+                    fi = yf.Ticker(ticker).fast_info
+                    fi_data = {
+                        'Last Price': fmt_num(getattr(fi,'last_price',None), prefix="$", abbrev=False),
+                        'Open':       fmt_num(getattr(fi,'open',None), prefix="$", abbrev=False),
+                        'Day High':   fmt_num(getattr(fi,'day_high',None), prefix="$", abbrev=False),
+                        'Day Low':    fmt_num(getattr(fi,'day_low',None), prefix="$", abbrev=False),
+                        'Prev Close': fmt_num(getattr(fi,'previous_close',None), prefix="$", abbrev=False),
+                        '52W High':   fmt_num(getattr(fi,'year_high',None), prefix="$", abbrev=False),
+                        '52W Low':    fmt_num(getattr(fi,'year_low',None), prefix="$", abbrev=False),
+                        'Market Cap': fmt_num(getattr(fi,'market_cap',None), prefix="$"),
+                        'Shares Out': fmt_num(getattr(fi,'shares',None)),
+                    }
+                except: pass
+                from modules.financials import _kv_row, _section_label
+                if fi_data:
+                    pa_cols = st.columns(3)
+                    items_pa = list(fi_data.items())
+                    for ci, col_pa in enumerate(pa_cols):
+                        with col_pa:
+                            chunk = items_pa[ci*3:(ci+1)*3]
+                            html_pa = "".join(_kv_row(l,v,C) for l,v in chunk)
+                            st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;">{html_pa}</div>', unsafe_allow_html=True)
+            with pa_tabs[1]:
+                h_tf = st.selectbox("Period", ["1Y","2Y","5Y","Max"], key=f"htf_{ticker}", label_visibility="collapsed")
+                pm = {"1Y":"1y","2Y":"2y","5Y":"5y","Max":"max"}
+                with st.spinner(""):
+                    df_h = get_data(ticker, pm[h_tf], "1d")
+                if df_h is not None and not df_h.empty:
+                    import plotly.graph_objects as _goh
+                    fh = _goh.Figure()
+                    fh.add_trace(_goh.Candlestick(
+                        x=df_h.index, open=df_h["Open"].squeeze(), high=df_h["High"].squeeze(),
+                        low=df_h["Low"].squeeze(), close=df_h["Close"].squeeze(),
+                        increasing=dict(line=dict(color=C["UP"]),fillcolor=C["UP"]),
+                        decreasing=dict(line=dict(color=C["DOWN"]),fillcolor=C["DOWN"]),
+                        showlegend=False))
+                    fh.update_layout(**base_layout(C, 380, f"{ticker} {h_tf} Daily"))
+                    st.plotly_chart(fh, use_container_width=True, config=CFG0)
+            with pa_tabs[2]:
+                with st.spinner(""):
+                    df_i = get_data(ticker, "5d", "15m")
+                if df_i is not None and not df_i.empty:
+                    import plotly.graph_objects as _goi
+                    fi2 = _goi.Figure()
+                    fi2.add_trace(_goi.Scatter(x=df_i.index, y=df_i["Close"].squeeze(),
+                        mode="lines", line=dict(color=C["BLUE"],width=1.4),
+                        fill="tozeroy", fillcolor="rgba(59,130,246,0.05)"))
+                    fi2.update_layout(**base_layout(C, 340, "Intraday 15m"))
+                    st.plotly_chart(fi2, use_container_width=True, config=CFG0)
+
+    # ── FUNDAMENTALS TAB ──────────────────────────────────────────────────────
+    if "Fundamentals" in tab_map:
+        with tab_map["Fundamentals"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            fund_tabs = st.tabs(["Key Ratios","Growth","Margins","Returns","Per Share"])
+            from modules.financials import _kv_row, _section_label, fmt_num, fmt_pct, fmt_ratio
+            with fund_tabs[0]: render_key_stats(info, C)
+            with fund_tabs[1]:
+                items = [("Revenue Growth", fmt_pct(info.get("revenueGrowth"))),
+                         ("EPS Growth YoY", fmt_pct(info.get("earningsGrowth"))),
+                         ("EPS Growth QoQ", fmt_pct(info.get("earningsQuarterlyGrowth"))),
+                         ("Revenue TTM",    fmt_num(info.get("totalRevenue"), prefix="$")),
+                         ("EBITDA",         fmt_num(info.get("ebitda"), prefix="$")),
+                         ("Net Income",     fmt_num(info.get("netIncomeToCommon"), prefix="$"))]
+                html_g = "".join(_kv_row(l,v,C) for l,v in items if v!="—")
+                st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;max-width:420px;">{html_g}</div>', unsafe_allow_html=True)
+            with fund_tabs[2]:
+                items = [("Gross Margin", fmt_pct(info.get("grossMargins"))),
+                         ("Operating Margin", fmt_pct(info.get("operatingMargins"))),
+                         ("Net Margin", fmt_pct(info.get("profitMargins"))),
+                         ("EBITDA Margin", fmt_pct(info.get("ebitdaMargins")))]
+                html_m = "".join(_kv_row(l,v,C) for l,v in items if v!="—")
+                st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;max-width:420px;">{html_m}</div>', unsafe_allow_html=True)
+            with fund_tabs[3]:
+                items = [("ROE", fmt_pct(info.get("returnOnEquity"))),
+                         ("ROA", fmt_pct(info.get("returnOnAssets"))),
+                         ("Debt/Equity", fmt_ratio(info.get("debtToEquity") and info.get("debtToEquity")/100)),
+                         ("Current Ratio", fmt_ratio(info.get("currentRatio"))),
+                         ("Quick Ratio", fmt_ratio(info.get("quickRatio")))]
+                html_r = "".join(_kv_row(l,v,C) for l,v in items if v!="—")
+                st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;max-width:420px;">{html_r}</div>', unsafe_allow_html=True)
+            with fund_tabs[4]:
+                items = [("EPS TTM", fmt_num(info.get("trailingEps"), prefix="$", abbrev=False)),
+                         ("EPS Forward", fmt_num(info.get("forwardEps"), prefix="$", abbrev=False)),
+                         ("Revenue/Share", fmt_num(info.get("revenuePerShare"), prefix="$", abbrev=False)),
+                         ("Book Value", fmt_num(info.get("bookValue"), prefix="$", abbrev=False)),
+                         ("Cash/Share", fmt_num(info.get("totalCashPerShare"), prefix="$", abbrev=False)),
+                         ("Dividend", fmt_num(info.get("dividendRate"), prefix="$", abbrev=False))]
+                html_ps = "".join(_kv_row(l,v,C) for l,v in items if v!="—")
+                st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;max-width:420px;">{html_ps}</div>', unsafe_allow_html=True)
+
+    # ── ESTIMATES TAB ─────────────────────────────────────────────────────────
+    if "Estimates" in tab_map:
+        with tab_map["Estimates"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            from modules.market_data import get_estimates
+            from modules.financials import _kv_row, fmt_num, fmt_pct
+            with st.spinner("Loading estimates..."):
+                est = get_estimates(ticker)
+            if not est:
+                st.info("Estimates data not available.")
+            else:
+                ec1, ec2 = st.columns(2)
+                with ec1:
+                    st.markdown(lbl("EPS Estimates", C=C), unsafe_allow_html=True)
+                    eps_items = [
+                        ("EPS Current Year", fmt_num(est.get("eps_current_yr"), prefix="$", abbrev=False)),
+                        ("EPS Forward",      fmt_num(est.get("eps_forward"), prefix="$", abbrev=False)),
+                        ("EPS Growth Est",   fmt_pct(est.get("growth_est"))),
+                        ("Analyst Count",    str(est.get("analyst_count") or "—")),
+                    ]
+                    html_e = "".join(_kv_row(l,v,C) for l,v in eps_items if v!="—")
+                    st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;">{html_e}</div>', unsafe_allow_html=True)
+                with ec2:
+                    st.markdown(lbl("Price Target", C=C), unsafe_allow_html=True)
+                    tgt_items = [
+                        ("Mean Target",  fmt_num(est.get("price_target"), prefix="$", abbrev=False)),
+                        ("High Target",  fmt_num(est.get("target_high"), prefix="$", abbrev=False)),
+                        ("Low Target",   fmt_num(est.get("target_low"), prefix="$", abbrev=False)),
+                        ("Consensus",    (est.get("rec_key") or "—").upper().replace("_"," ")),
+                    ]
+                    html_t = "".join(_kv_row(l,v,C) for l,v in tgt_items if v!="—")
+                    st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;">{html_t}</div>', unsafe_allow_html=True)
+                hist = est.get("history")
+                if hist is not None and not hist.empty:
+                    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+                    st.markdown(lbl("Earnings History", C=C), unsafe_allow_html=True)
+                    st.dataframe(hist.head(8), use_container_width=True)
+                dates = est.get("earnings_dates")
+                if dates is not None and not dates.empty:
+                    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+                    st.markdown(lbl("Earnings Dates", C=C), unsafe_allow_html=True)
+                    st.dataframe(dates.head(6), use_container_width=True)
+
+    # ── INSIDER TAB ───────────────────────────────────────────────────────────
+    if "Insider" in tab_map:
+        with tab_map["Insider"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            from modules.market_data import get_insider_data
+            with st.spinner("Loading insider transactions..."):
+                ins_df = get_insider_data(ticker)
+            if ins_df is None or ins_df.empty:
+                st.info("No insider transaction data available.")
+            else:
+                st.markdown(lbl("Recent Insider Transactions", C=C), unsafe_allow_html=True)
+                try:
+                    disp_i = ins_df.copy()
+                    if "Start Date" in disp_i.columns:
+                        disp_i["Start Date"] = pd.to_datetime(disp_i["Start Date"]).dt.strftime("%Y-%m-%d")
+                    st.dataframe(disp_i.head(25), use_container_width=True, hide_index=True)
+                except:
+                    st.dataframe(ins_df.head(25), use_container_width=True)
+
+    # ── CORPORATE ACTIONS TAB ─────────────────────────────────────────────────
+    if "Corporate Actions" in tab_map:
+        with tab_map["Corporate Actions"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            from modules.market_data import get_corporate_actions
+            from modules.financials import _kv_row, fmt_num, fmt_pct
+            with st.spinner("Loading corporate actions..."):
+                ca = get_corporate_actions(ticker)
+            if not ca:
+                st.info("No corporate actions data available.")
+            else:
+                ca_tabs = st.tabs(["Dividends","Splits","Summary"])
+                with ca_tabs[0]:
+                    divs = ca.get("dividends", pd.DataFrame())
+                    if not divs.empty:
+                        try:
+                            dd = divs.copy()
+                            if "Date" in dd.columns:
+                                dd["Date"] = pd.to_datetime(dd["Date"]).dt.strftime("%Y-%m-%d")
+                            st.dataframe(dd.sort_values("Date",ascending=False).head(20), use_container_width=True, hide_index=True)
+                        except: st.dataframe(divs, use_container_width=True)
+                    else:
+                        st.info("No dividend history.")
+                with ca_tabs[1]:
+                    splits = ca.get("splits", pd.DataFrame())
+                    if not splits.empty:
+                        try:
+                            sd = splits.copy()
+                            if "Date" in sd.columns:
+                                sd["Date"] = pd.to_datetime(sd["Date"]).dt.strftime("%Y-%m-%d")
+                            st.dataframe(sd.sort_values("Date",ascending=False), use_container_width=True, hide_index=True)
+                        except: st.dataframe(splits, use_container_width=True)
+                    else:
+                        st.info("No split history.")
+                with ca_tabs[2]:
+                    ca_inf = ca.get("info", {})
+                    items_ca = [
+                        ("Annual Dividend", fmt_num(ca_inf.get("dividend_rate"), prefix="$", abbrev=False)),
+                        ("Dividend Yield",  fmt_pct(ca_inf.get("dividend_yield"))),
+                        ("Payout Ratio",    fmt_pct(ca_inf.get("payout_ratio"))),
+                    ]
+                    html_ca = "".join(_kv_row(l,v,C) for l,v in items_ca if v!="—")
+                    if html_ca:
+                        st.markdown(f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:14px;max-width:350px;">{html_ca}</div>', unsafe_allow_html=True)
+                    else:
+                        st.info("No summary available.")
+
+    # ── RISK TAB ──────────────────────────────────────────────────────────────
+    if "Risk" in tab_map:
+        with tab_map["Risk"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            from modules.market_data import calculate_risk_metrics
+            bench = st.session_state.get("benchmark", "SPY")
+            with st.spinner(f"Calculating risk vs {bench}..."):
+                risk = calculate_risk_metrics(ticker, bench)
+            if risk:
+                rm1,rm2,rm3,rm4 = st.columns(4)
+                rm1.metric("Beta", f"{risk.get('beta','—')}")
+                rm2.metric("Ann. Volatility", f"{risk.get('volatility_pct','—')}%")
+                rm3.metric("Sharpe Ratio", f"{risk.get('sharpe','—')}")
+                rm4.metric("Sortino Ratio", f"{risk.get('sortino','—')}")
+                rm5,rm6,rm7,rm8 = st.columns(4)
+                rm5.metric("Max Drawdown", f"{risk.get('max_drawdown_pct','—')}%")
+                rm6.metric(f"Corr vs {bench}", f"{risk.get('correlation','—')}")
+                rm7.metric("VaR 95%", f"{risk.get('var_95','—')}%")
+                rm8.metric("Alpha (2Y)", f"{risk.get('alpha','—')}%")
+                st.markdown(
+                    f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;color:{C["TXT3"]};padding:6px 0;">'
+                    f'Risk metrics: 2Y daily returns. Benchmark: {bench}.</div>',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.info("Risk metrics unavailable. Insufficient data.")
+
+    # ── EVENTS TAB ────────────────────────────────────────────────────────────
+    if "Events" in tab_map:
+        with tab_map["Events"]:
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            from modules.market_data import get_estimates, get_corporate_actions, get_sec_filings_url
+            ev_tabs = st.tabs(["Earnings","Dividends","Filings"])
+            with ev_tabs[0]:
+                with st.spinner(""):
+                    est2 = get_estimates(ticker)
+                dates2 = est2.get("earnings_dates") if est2 else None
+                if dates2 is not None and not dates2.empty:
+                    st.markdown(lbl("Earnings Calendar", C=C), unsafe_allow_html=True)
+                    st.dataframe(dates2.head(8), use_container_width=True)
+                else:
+                    st.info("No earnings calendar data available.")
+            with ev_tabs[1]:
+                ca2 = get_corporate_actions(ticker)
+                divs2 = ca2.get("dividends", pd.DataFrame()) if ca2 else pd.DataFrame()
+                if not divs2.empty:
+                    try:
+                        dd2 = divs2.copy()
+                        if "Date" in dd2.columns:
+                            dd2["Date"] = pd.to_datetime(dd2["Date"]).dt.strftime("%Y-%m-%d")
+                        st.dataframe(dd2.sort_values("Date",ascending=False).head(10), use_container_width=True, hide_index=True)
+                    except: st.dataframe(divs2.head(10), use_container_width=True)
+                else:
+                    st.info("No dividend data available.")
+            with ev_tabs[2]:
+                url = get_sec_filings_url(ticker)
+                st.markdown(
+                    f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:16px;">'
+                    f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;text-transform:uppercase;color:{C["TXT3"]};margin-bottom:8px;">SEC EDGAR Filings</div>'
+                    f'<div style="font-family:Inter,sans-serif;font-size:0.82rem;color:{C["TXT2"]};margin-bottom:10px;">Annual, quarterly, and 8-K filings:</div>'
+                    f'<a href="{url}" target="_blank" style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{C["BLUE"]};">View {ticker} on SEC EDGAR →</a>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1477,6 +1765,537 @@ Rules:
                         except Exception as e:
                             st.error(f"Backtest generation error: {str(e)}")
 
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="markets":
+    from modules.market_data import MARKET_GROUPS, get_market_snapshot
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:4px;">Markets</div>'
+        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;color:{C["TXT3"]};margin-bottom:16px;">Global Market Overview · Live Prices</div>',
+        unsafe_allow_html=True
+    )
+    for group_name, tickers in MARKET_GROUPS.items():
+        with st.expander(group_name, expanded=group_name in ["US Indices","US Sectors"]):
+            with st.spinner(f"Loading {group_name}..."):
+                data = get_market_snapshot(tickers)
+            cols = st.columns(len(tickers))
+            for i, (name, ticker) in enumerate(tickers):
+                d = data.get(ticker, {})
+                p = d.get('price'); pct = d.get('pct', 0)
+                col = C['UP'] if pct >= 0 else C['DOWN']
+                sign = "+" if pct >= 0 else ""
+                with cols[i]:
+                    st.markdown(
+                        f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:12px 8px;text-align:center;">'
+                        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:{C["TXT3"]};margin-bottom:4px;">{name}</div>'
+                        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.9rem;font-weight:600;color:{C["TXT1"]};">{f"{p:,.2f}" if p else "—"}</div>'
+                        f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{col};">{sign}{pct:.2f}%</div>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="macro":
+    from modules.market_data import get_macro_indicators, get_yield_curve, MACRO_EVENTS
+    import plotly.graph_objects as go
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:16px;">Macro Dashboard</div>',
+        unsafe_allow_html=True
+    )
+    mac_tabs = st.tabs(["Indicators", "Yield Curve", "FX", "Calendar", "Rates"])
+    with mac_tabs[0]:
+        with st.spinner("Loading macro indicators..."):
+            macro = get_macro_indicators()
+        if macro:
+            cats = {}
+            for name, d in macro.items():
+                cat = d.get('category','Other')
+                cats.setdefault(cat, []).append((name, d))
+            for cat, items in cats.items():
+                st.markdown(lbl(cat, C=C), unsafe_allow_html=True)
+                mc = st.columns(len(items))
+                for i, (name, d) in enumerate(items):
+                    with mc[i]:
+                        pct = d.get('pct', 0)
+                        col = C['UP'] if pct >= 0 else C['DOWN']
+                        sign = "+" if pct >= 0 else ""
+                        st.markdown(
+                            f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:12px 10px;text-align:center;">'
+                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.56rem;font-weight:600;text-transform:uppercase;color:{C["TXT3"]};margin-bottom:4px;">{name}</div>'
+                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.88rem;font-weight:600;color:{C["TXT1"]};">{d["price"]:,.3f}</div>'
+                            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.7rem;color:{col};">{sign}{pct:.2f}%</div>'
+                            f'</div>',
+                            unsafe_allow_html=True
+                        )
+                st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+    with mac_tabs[1]:
+        st.markdown(lbl("US Treasury Yield Curve", C=C), unsafe_allow_html=True)
+        with st.spinner("Loading yield curve..."):
+            yields = get_yield_curve()
+        if yields:
+            fig_yc = go.Figure()
+            labels = list(yields.keys()); vals = list(yields.values())
+            fig_yc.add_trace(go.Scatter(x=labels, y=vals, mode='lines+markers',
+                line=dict(color=C['BLUE'], width=2),
+                marker=dict(color=C['BLUE'], size=8)))
+            fig_yc.update_layout(**base_layout(C, 320, "US Treasury Yield Curve"))
+            st.plotly_chart(fig_yc, use_container_width=True, config=CFG0)
+            mc2 = st.columns(len(yields))
+            for i, (mat, yld) in enumerate(yields.items()):
+                with mc2[i]:
+                    st.metric(mat, f"{yld:.3f}%")
+        else:
+            st.info("Yield curve data loading...")
+
+    with mac_tabs[2]:
+        from modules.market_data import MARKET_GROUPS
+        fx_tickers = MARKET_GROUPS.get("FX", [])
+        with st.spinner("Loading FX..."):
+            fx_data = get_market_snapshot(fx_tickers)
+        fx_rows = []
+        for name, ticker in fx_tickers:
+            d = fx_data.get(ticker, {})
+            if d.get('price'):
+                fx_rows.append({'Pair': name, 'Rate': round(d['price'], 5),
+                                 'Chg %': round(d.get('pct',0), 4)})
+        if fx_rows:
+            df_fx = pd.DataFrame(fx_rows)
+            st.dataframe(df_fx, use_container_width=True, hide_index=True)
+
+    with mac_tabs[3]:
+        st.markdown(lbl("Economic Calendar — Key Events", C=C), unsafe_allow_html=True)
+        imp_filter = st.selectbox("Importance", ["All","HIGH","MEDIUM","LOW"],
+                                   key="mac_imp", label_visibility="collapsed")
+        rows_cal = MACRO_EVENTS if imp_filter=="All" else [e for e in MACRO_EVENTS if e[3]==imp_filter]
+        for ev_name, country, category, importance in rows_cal:
+            imp_col = C['DOWN'] if importance=="HIGH" else C['AMBER'] if importance=="MEDIUM" else C['TXT3']
+            st.markdown(
+                f'<div style="display:flex;justify-content:space-between;align-items:center;'
+                f'padding:8px 0;border-bottom:1px solid {C["BOR"]};">'
+                f'<div>'
+                f'<span style="font-family:Inter,sans-serif;font-size:0.82rem;font-weight:500;color:{C["TXT2"]};">{ev_name}</span>'
+                f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C["TXT3"]};margin-left:8px;">{country} · {category}</span>'
+                f'</div>'
+                f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.65rem;font-weight:600;color:{imp_col};'
+                f'background:{"rgba(232,56,74,0.1)" if importance=="HIGH" else "rgba(245,158,11,0.1)" if importance=="MEDIUM" else "transparent"};'
+                f'padding:2px 8px;border-radius:3px;">{importance}</span>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+    with mac_tabs[4]:
+        st.markdown(lbl("Interest Rates", C=C), unsafe_allow_html=True)
+        rates = [("Fed Funds Rate","4.25-4.50%","Federal Reserve"),
+                 ("ECB Deposit Rate","2.50%","European Central Bank"),
+                 ("BOE Bank Rate","4.50%","Bank of England"),
+                 ("BOJ Policy Rate","0.50%","Bank of Japan"),
+                 ("PBOC LPR 1Y","3.10%","People's Bank of China"),
+                 ("RBA Cash Rate","4.10%","Reserve Bank of Australia")]
+        for name, rate, bank in rates:
+            st.markdown(
+                f'<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid {C["BOR"]};">'
+                f'<div><span style="font-family:Inter,sans-serif;font-size:0.82rem;font-weight:500;color:{C["TXT2"]};">{name}</span>'
+                f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C["TXT3"]};margin-left:8px;">{bank}</span></div>'
+                f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.85rem;font-weight:600;color:{C["TXT1"]};">{rate}</span>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="screener":
+    from modules.market_data import SCREENER_UNIVERSE, run_screener
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:16px;">Screener</div>',
+        unsafe_allow_html=True
+    )
+    sc1, sc2, sc3 = st.columns([2, 2, 2])
+    universe = sc1.selectbox("Universe", list(SCREENER_UNIVERSE.keys()),
+                              key="scr_uni", label_visibility="collapsed")
+    sort_by = sc2.selectbox("Sort By", ["Chg %","Mkt Cap","P/E","Fwd P/E","Rev Growth","Net Margin","Beta"],
+                             key="scr_sort", label_visibility="collapsed")
+    sort_dir = sc3.radio("Direction", ["Desc","Asc"], horizontal=True,
+                          key="scr_dir", label_visibility="collapsed")
+    tickers = SCREENER_UNIVERSE[universe]
+    with st.spinner(f"Loading {universe} screener data..."):
+        df_scr = run_screener(tickers)
+    if not df_scr.empty:
+        # Format display
+        df_display = df_scr.copy()
+        for col in ['Mkt Cap']:
+            if col in df_display.columns:
+                df_display[col] = df_display[col].apply(
+                    lambda x: f"${x/1e9:.1f}B" if pd.notna(x) and x else "—"
+                )
+        for col in ['P/E','Fwd P/E','EV/EBITDA','Beta']:
+            if col in df_display.columns:
+                df_display[col] = df_display[col].apply(
+                    lambda x: f"{x:.1f}x" if pd.notna(x) and x and x > 0 else "—"
+                )
+        for col in ['Rev Growth','Net Margin','ROE','Div Yield']:
+            if col in df_display.columns:
+                df_display[col] = df_display[col].apply(
+                    lambda x: f"{x*100:.1f}%" if pd.notna(x) and x else "—"
+                )
+        for col in ['Volume','Avg Vol']:
+            if col in df_display.columns:
+                df_display[col] = df_display[col].apply(
+                    lambda x: f"{x/1e6:.1f}M" if pd.notna(x) and x else "—"
+                )
+        # Color Chg %
+        if 'Chg %' in df_display.columns:
+            df_display['Chg %'] = df_display['Chg %'].apply(
+                lambda x: f"{x:+.2f}%" if pd.notna(x) else "—"
+            )
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        st.markdown(
+            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;color:{C["TXT3"]};padding:6px 0;">'
+            f'{len(df_scr)} instruments · Delayed data · Click ticker to open workspace</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.info("Loading screener data...")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="calendar":
+    from modules.market_data import get_earnings_calendar, MACRO_EVENTS
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:16px;">Calendar</div>',
+        unsafe_allow_html=True
+    )
+    cal_tabs = st.tabs(["Earnings", "Economic Events", "Dividends", "IPOs"])
+    with cal_tabs[0]:
+        st.markdown(lbl("Upcoming Earnings", C=C), unsafe_allow_html=True)
+        watchlist_tickers = st.session_state.get('watchlist', ['AAPL','MSFT','NVDA','AMZN','GOOGL','TSLA'])
+        with st.spinner("Loading earnings calendar..."):
+            df_earn = get_earnings_calendar(watchlist_tickers + ['JPM','GS','BAC','WFC','MS'])
+        if not df_earn.empty:
+            st.dataframe(df_earn, use_container_width=True, hide_index=True)
+        else:
+            st.info("No upcoming earnings found for your watchlist. Add tickers to watchlist.")
+        st.markdown(
+            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.6rem;color:{C["TXT3"]};padding:6px 0;">'
+            f'Earnings dates sourced from Yahoo Finance. Dates subject to change.</div>',
+            unsafe_allow_html=True
+        )
+    with cal_tabs[1]:
+        st.markdown(lbl("Economic Calendar", C=C), unsafe_allow_html=True)
+        cc1, cc2 = st.columns([1, 4])
+        imp_sel = cc1.selectbox("Filter", ["All","HIGH","MEDIUM","LOW"],
+                                 key="cal_imp", label_visibility="collapsed")
+        events = MACRO_EVENTS if imp_sel=="All" else [e for e in MACRO_EVENTS if e[3]==imp_sel]
+        for ev_name, country, category, importance in events:
+            imp_col = C['DOWN'] if importance=="HIGH" else C['AMBER'] if importance=="MEDIUM" else C['TXT3']
+            st.markdown(
+                f'<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid {C["BOR"]};">'
+                f'<div>'
+                f'<span style="font-family:Inter,sans-serif;font-size:0.82rem;font-weight:500;color:{C["TXT2"]};">{ev_name}</span>'
+                f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C["TXT3"]};margin-left:8px;">{country} · {category}</span>'
+                f'</div>'
+                f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.65rem;font-weight:600;color:{imp_col};'
+                f'padding:2px 8px;border-radius:3px;background:{"rgba(232,56,74,0.1)" if importance=="HIGH" else "rgba(245,158,11,0.1)" if importance=="MEDIUM" else "transparent"};">{importance}</span>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+    with cal_tabs[2]:
+        st.info("Dividend calendar — select a symbol and open its Corporate Actions tab for dividend history.")
+    with cal_tabs[3]:
+        st.info("IPO calendar data not available via free data sources. Consider adding a paid provider.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="alerts":
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:16px;">Alerts</div>',
+        unsafe_allow_html=True
+    )
+    if "alerts_list" not in st.session_state: st.session_state.alerts_list = []
+    al_tabs = st.tabs(["Active Alerts", "Create Alert", "Alert History"])
+    with al_tabs[1]:
+        st.markdown(lbl("Create New Alert", C=C), unsafe_allow_html=True)
+        a1, a2, a3 = st.columns(3)
+        al_ticker = a1.text_input("Ticker", placeholder="AAPL", key="al_ticker", label_visibility="collapsed")
+        al_type = a2.selectbox("Alert Type",
+            ["Price Above","Price Below","% Move Up","% Move Down",
+             "Volume Spike","RSI Overbought (>70)","RSI Oversold (<30)",
+             "New 52W High","New 52W Low","EMA Cross Up","EMA Cross Down"],
+            key="al_type", label_visibility="collapsed")
+        al_val = a3.number_input("Value", value=0.0, key="al_val", label_visibility="collapsed")
+        al_note = st.text_input("Note (optional)", placeholder="e.g. Breakout level", key="al_note")
+        if st.button("Add Alert", key="al_add"):
+            if al_ticker:
+                st.session_state.alerts_list.append({
+                    'ticker': al_ticker.upper(), 'type': al_type,
+                    'value': al_val, 'note': al_note,
+                    'created': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                    'status': 'Active'
+                })
+                st.success(f"Alert created for {al_ticker.upper()}")
+                st.rerun()
+
+    with al_tabs[0]:
+        if not st.session_state.alerts_list:
+            st.markdown(
+                f'<div style="text-align:center;padding:40px;background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;">'
+                f'<div style="font-family:Inter,sans-serif;font-size:0.88rem;color:{C["TXT3"]};">No active alerts. Create one in the Create Alert tab.</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            for i, alert in enumerate(st.session_state.alerts_list):
+                ac1, ac2, ac3, ac4, ac5 = st.columns([1,2,2,2,1])
+                ac1.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;font-weight:600;color:{C["TXT1"]};padding-top:8px;">{alert["ticker"]}</div>', unsafe_allow_html=True)
+                ac2.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{C["TXT2"]};padding-top:8px;">{alert["type"]}</div>', unsafe_allow_html=True)
+                ac3.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{C["TXT2"]};padding-top:8px;">{alert["value"]} {alert.get("note","")}</div>', unsafe_allow_html=True)
+                ac4.markdown(f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.62rem;color:{C["TXT3"]};padding-top:10px;">{alert["created"]}</div>', unsafe_allow_html=True)
+                if ac5.button("Remove", key=f"al_rm_{i}"):
+                    st.session_state.alerts_list.pop(i); st.rerun()
+
+    with al_tabs[2]:
+        st.info("Alert history will appear here once alerts are triggered.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="watchlists":
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:16px;">Watchlists</div>',
+        unsafe_allow_html=True
+    )
+    wl_tabs = st.tabs(["My Watchlist", "Add / Remove", "Compare"])
+    with wl_tabs[0]:
+        wl = st.session_state.get('watchlist', [])
+        if not wl:
+            st.info("Your watchlist is empty. Go to Add / Remove to add tickers.")
+        else:
+            wl_cols = ["Ticker","Name","Price","Chg %","5M Signal","1D Signal","Mkt Cap","P/E","Vol"]
+            hdr = '<div style="display:grid;grid-template-columns:80px 160px 90px 80px 100px 100px 100px 70px 90px;gap:4px;padding:8px 12px;border-bottom:2px solid '+C["BOR"]+';margin-bottom:4px;">'
+            for h in wl_cols:
+                hdr += f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.58rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{C["TXT3"]};">{h}</span>'
+            hdr += '</div>'
+            st.markdown(hdr, unsafe_allow_html=True)
+            for wt in wl:
+                try:
+                    p2,chg2,pct2 = price_info(wt)
+                    info2 = get_info(wt)
+                    _,s5,_ = get_signals_cached(wt,"7d","5m")
+                    _,s1d,_ = get_signals_cached(wt,"2y","1d")
+                    if p2:
+                        pc = C['UP'] if pct2>=0 else C['DOWN']
+                        sign2 = "+" if pct2>=0 else ""
+                        from modules.styles import signal_badge
+                        name2 = (info2.get('shortName','') or wt)[:18]
+                        mc = info2.get('marketCap',0) or 0
+                        pe = info2.get('trailingPE',0) or 0
+                        vol = info2.get('regularMarketVolume',0) or 0
+                        st.markdown(
+                            f'<div style="display:grid;grid-template-columns:80px 160px 90px 80px 100px 100px 100px 70px 90px;'
+                            f'gap:4px;padding:8px 12px;border-bottom:1px solid {C["BOR"]};align-items:center;">'
+                            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;font-weight:600;color:{C["TXT1"]};">{wt}</span>'
+                            f'<span style="font-family:Inter,sans-serif;font-size:0.75rem;color:{C["TXT2"]};">{name2}</span>'
+                            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;color:{C["TXT2"]};">{p2:,.4f}</span>'
+                            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.75rem;color:{pc};">{sign2}{pct2:.2f}%</span>'
+                            f'<span>{signal_badge(s5,C)}</span>'
+                            f'<span>{signal_badge(s1d,C)}</span>'
+                            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{C["TXT2"]};">${mc/1e9:.1f}B</span>'
+                            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{C["TXT2"]};">{f"{pe:.1f}x" if pe>0 else "—"}</span>'
+                            f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{C["TXT2"]};">{vol/1e6:.1f}M</span>'
+                            f'</div>',
+                            unsafe_allow_html=True
+                        )
+                except: pass
+    with wl_tabs[1]:
+        wc1, wc2 = st.columns([3,1])
+        wl_add_q = wc1.text_input("Search to add", placeholder="Symbol or company...",
+                                    key="wl_add_q", label_visibility="collapsed")
+        if wl_add_q:
+            matches = search_tickers(wl_add_q)
+            if matches:
+                sel_add = st.selectbox("", ["— select —"]+matches, key="wl_sel_add", label_visibility="collapsed")
+                if sel_add and sel_add!="— select —":
+                    nt = sel_add.split(" — ")[0]
+                    if st.button(f"Add {nt}", key="wl_do_add"):
+                        if nt not in st.session_state.watchlist:
+                            st.session_state.watchlist.append(nt); st.rerun()
+        st.markdown(lbl("Current Watchlist", C=C), unsafe_allow_html=True)
+        for i, wt in enumerate(st.session_state.get('watchlist', [])):
+            wrc1, wrc2 = st.columns([4, 1])
+            wrc1.markdown(f'<span style="font-family:IBM Plex Mono,monospace;font-size:0.78rem;color:{C["TXT2"]};">{wt}</span>', unsafe_allow_html=True)
+            if wrc2.button("Remove", key=f"wl_rm_{i}"):
+                st.session_state.watchlist.remove(wt); st.rerun()
+    with wl_tabs[2]:
+        wl_compare = st.session_state.get('watchlist', [])[:8]
+        if len(wl_compare) < 2:
+            st.info("Add at least 2 tickers to your watchlist to compare.")
+        else:
+            with st.spinner("Loading comparison data..."):
+                comp_rows = []
+                for t in wl_compare:
+                    try:
+                        info_c = get_info(t)
+                        p_c,_,pct_c = price_info(t)
+                        comp_rows.append({
+                            'Ticker': t,
+                            'Price': round(p_c, 2) if p_c else None,
+                            '1D Chg': f"{pct_c:+.2f}%" if pct_c else "—",
+                            'Mkt Cap': f"${info_c.get('marketCap',0)/1e9:.1f}B" if info_c.get('marketCap') else "—",
+                            'P/E': f"{info_c.get('trailingPE',0):.1f}x" if info_c.get('trailingPE') else "—",
+                            'Fwd P/E': f"{info_c.get('forwardPE',0):.1f}x" if info_c.get('forwardPE') else "—",
+                            'EV/EBITDA': f"{info_c.get('enterpriseToEbitda',0):.1f}x" if info_c.get('enterpriseToEbitda') else "—",
+                            'Rev Growth': f"{info_c.get('revenueGrowth',0)*100:.1f}%" if info_c.get('revenueGrowth') else "—",
+                            'Net Margin': f"{info_c.get('profitMargins',0)*100:.1f}%" if info_c.get('profitMargins') else "—",
+                            'Beta': f"{info_c.get('beta',0):.2f}" if info_c.get('beta') else "—",
+                        })
+                    except: pass
+            if comp_rows:
+                st.dataframe(pd.DataFrame(comp_rows), use_container_width=True, hide_index=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="settings":
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:16px;">Settings</div>',
+        unsafe_allow_html=True
+    )
+    set_tabs = st.tabs(["Appearance","Data & Display","Defaults","About"])
+    with set_tabs[0]:
+        st.markdown(lbl("Theme", C=C), unsafe_allow_html=True)
+        t_choice = st.radio("Theme", ["Dark","Light"], horizontal=True,
+                             index=0 if C['DARK'] else 1, key="settings_theme")
+        if t_choice=="Dark" and st.session_state.theme!='dark':
+            st.session_state.theme='dark'; st.rerun()
+        elif t_choice=="Light" and st.session_state.theme!='light':
+            st.session_state.theme='light'; st.rerun()
+        st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+        st.markdown(lbl("Chart Defaults", C=C), unsafe_allow_html=True)
+        default_tf = st.selectbox("Default Timeframe", list(TV_INTERVALS.keys()), index=5, key="def_tf")
+        default_chart = st.selectbox("Default Chart Style", ["Candles","Line","Bars","Area"], key="def_chart")
+        st.session_state['default_tf'] = default_tf
+        st.session_state['default_chart'] = default_chart
+
+    with set_tabs[1]:
+        st.markdown(lbl("Data Settings", C=C), unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.72rem;color:{C["TXT2"]};line-height:2;">'
+            f'Data source: Yahoo Finance (yfinance)<br>'
+            f'News: RSS feeds (Reuters, CNBC, MarketWatch, CoinDesk)<br>'
+            f'Charts: TradingView widgets (symbol pages) + Plotly (indicators/dashboard)<br>'
+            f'AI: Anthropic Claude (MoneyMan + AI Quant Backtester)<br>'
+            f'Refresh: Price data every 30s · News every 60s · Financials every 1hr<br>'
+            f'All data is delayed (15-20 minutes for quotes).'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+        if st.button("Clear All Cached Data", key="clear_cache"):
+            st.cache_data.clear()
+            st.success("Cache cleared.")
+
+    with set_tabs[2]:
+        st.markdown(lbl("Default Pages", C=C), unsafe_allow_html=True)
+        default_page = st.selectbox("Default Landing Page",
+            ["dashboard","markets","equities","crypto","macro","news"],
+            key="def_page", label_visibility="collapsed")
+        st.session_state['default_landing'] = default_page
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+        st.markdown(lbl("Portfolio Defaults", C=C), unsafe_allow_html=True)
+        benchmark = st.selectbox("Benchmark", ["SPY","QQQ","IWM","DIA","BTC-USD"],
+                                  key="def_bench", label_visibility="collapsed")
+        st.session_state['benchmark'] = benchmark
+
+    with set_tabs[3]:
+        st.markdown(
+            f'<div style="background:{C["BG2"]};border:1px solid {C["BOR"]};border-radius:6px;padding:20px;">'
+            f'<div style="font-family:DM Sans,sans-serif;font-size:1.1rem;font-weight:700;color:{C["TXT1"]};margin-bottom:8px;">Quantify</div>'
+            f'<div style="font-family:IBM Plex Mono,monospace;font-size:0.68rem;color:{C["TXT2"]};line-height:2;">'
+            f'Version: 2.0 · Market Intelligence Terminal<br>'
+            f'Built with Streamlit · Python · yfinance · TradingView · Plotly<br>'
+            f'AI powered by Anthropic Claude<br>'
+            f'Open source · github.com/rayanaslam60-bot/Quantify<br>'
+            f'Data: Yahoo Finance (free tier) · 15-20 min delayed quotes<br><br>'
+            f'<span style="color:{C["TXT3"]};">Not financial advice. For informational purposes only.</span>'
+            f'</div></div>',
+            unsafe_allow_html=True
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="fx":
+    from modules.market_data import MARKET_GROUPS, get_market_snapshot
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:16px;">FX — Foreign Exchange</div>',
+        unsafe_allow_html=True
+    )
+    fx_sel = st.selectbox("Select Pair",
+        ["EURUSD=X","GBPUSD=X","USDJPY=X","AUDUSD=X","USDCAD=X","USDCHF=X",
+         "NZDUSD=X","EURGBP=X","EURJPY=X","GBPJPY=X","USDCNY=X","USDINR=X"],
+        key="fx_sel", label_visibility="collapsed")
+    render_symbol_page(fx_sel)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+elif page=="research":
+    st.markdown("<div style='padding:16px 1.5rem 0;'>", unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:DM Sans,sans-serif;font-size:1.3rem;font-weight:700;color:{C["TXT1"]};margin-bottom:16px;">Research</div>',
+        unsafe_allow_html=True
+    )
+    res_tabs = st.tabs(["Sector Analysis","Factor Dashboard","Risk Models","Quant Screens"])
+    with res_tabs[0]:
+        from modules.market_data import MARKET_GROUPS, get_market_snapshot
+        st.markdown(lbl("Sector Performance", C=C), unsafe_allow_html=True)
+        sector_tickers = MARKET_GROUPS.get("US Sectors", [])
+        with st.spinner("Loading sectors..."):
+            sec_data = get_market_snapshot(sector_tickers)
+        if sec_data:
+            sec_rows = []
+            for name, ticker in sector_tickers:
+                d = sec_data.get(ticker, {})
+                if d.get('price'):
+                    sec_rows.append({'Sector': name, 'ETF': ticker,
+                                     'Price': round(d['price'],2), 'Chg %': round(d.get('pct',0),2)})
+            if sec_rows:
+                df_sec = pd.DataFrame(sec_rows).sort_values('Chg %', ascending=False)
+                df_sec['Chg %'] = df_sec['Chg %'].apply(lambda x: f"{x:+.2f}%")
+                st.dataframe(df_sec, use_container_width=True, hide_index=True)
+    with res_tabs[1]:
+        st.markdown(lbl("Factor Performance (Proxy ETFs)", C=C), unsafe_allow_html=True)
+        factors = [("Value","VTV"),("Growth","VUG"),("Momentum","MTUM"),
+                   ("Quality","QUAL"),("Low Vol","USMV"),("Small Cap","IWM"),
+                   ("Dividend","VYM"),("Tech","XLK")]
+        with st.spinner("Loading factors..."):
+            fac_data = get_market_snapshot(factors)
+        fac_rows = []
+        for name, ticker in factors:
+            d = fac_data.get(ticker, {})
+            if d.get('price'):
+                fac_rows.append({'Factor': name, 'ETF': ticker,
+                                  'Price': round(d['price'],2), 'Chg %': round(d.get('pct',0),2)})
+        if fac_rows:
+            df_fac = pd.DataFrame(fac_rows).sort_values('Chg %', ascending=False)
+            df_fac['Chg %'] = df_fac['Chg %'].apply(lambda x: f"{x:+.2f}%")
+            st.dataframe(df_fac, use_container_width=True, hide_index=True)
+    with res_tabs[2]:
+        st.markdown(lbl("Run Risk Analysis", C=C), unsafe_allow_html=True)
+        risk_ticker = st.text_input("", placeholder="Enter ticker...", key="risk_t", label_visibility="collapsed")
+        if risk_ticker and st.button("Calculate Risk Metrics", key="risk_calc"):
+            with st.spinner(f"Calculating risk metrics for {risk_ticker}..."):
+                risk = calculate_risk_metrics(risk_ticker.upper())
+            if risk:
+                rc1,rc2,rc3,rc4 = st.columns(4)
+                rc1.metric("Beta", f"{risk.get('beta','—')}")
+                rc2.metric("Ann. Vol", f"{risk.get('volatility_pct','—')}%")
+                rc3.metric("Sharpe", f"{risk.get('sharpe','—')}")
+                rc4.metric("Max Drawdown", f"{risk.get('max_drawdown_pct','—')}%")
+                rc5,rc6,rc7,rc8 = st.columns(4)
+                rc5.metric("Sortino", f"{risk.get('sortino','—')}")
+                rc6.metric("Corr to SPY", f"{risk.get('correlation','—')}")
+                rc7.metric("VaR 95%", f"{risk.get('var_95','—')}%")
+                rc8.metric("Alpha", f"{risk.get('alpha','—')}%")
+    with res_tabs[3]:
+        st.info("Quantitative screener — use the Screener page for symbol filtering.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 elif page=="portfolio":
